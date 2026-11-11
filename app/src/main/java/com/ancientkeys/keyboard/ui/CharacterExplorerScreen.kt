@@ -109,13 +109,16 @@ fun CharacterExplorerScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val userPrefs = remember { UserPreferencesRepository.getInstance(context) }
 
-    // Active script can be switched within the explorer
-    var currentScript by rememberSaveable(script.id) { mutableStateOf(script) }
+    // Active script ID can be switched within the explorer and must save a stable ID to avoid SaveableStateRegistry crash
+    var currentScriptId by rememberSaveable(script.id) { mutableStateOf(script.id) }
+    val currentScript = remember(currentScriptId) {
+        ScriptRegistry.getScriptById(currentScriptId) ?: script
+    }
 
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var isSearchVisible by rememberSaveable { mutableStateOf(false) }
-    var selectedCategoryIndex by rememberSaveable(currentScript.id) { mutableIntStateOf(0) }
-    var showOnlyFavorites by rememberSaveable(currentScript.id) { mutableStateOf(false) }
+    var selectedCategoryIndex by rememberSaveable(currentScriptId) { mutableIntStateOf(0) }
+    var showOnlyFavorites by rememberSaveable(currentScriptId) { mutableStateOf(false) }
     var isScriptMenuExpanded by remember { mutableStateOf(false) }
     var showFullDetailSheet by remember { mutableStateOf(false) }
 
@@ -323,7 +326,7 @@ fun CharacterExplorerScreen(
                                 }
                             },
                             onClick = {
-                                currentScript = candidateScript
+                                currentScriptId = candidateScript.id
                                 selectedCategoryIndex = 0
                                 showOnlyFavorites = false
                                 searchQuery = ""
