@@ -1,6 +1,10 @@
 package com.ancientkeys.keyboard.ui
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -12,19 +16,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -32,19 +28,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ancientkeys.keyboard.ui.components.AncientKeysCard
+import com.ancientkeys.keyboard.ui.components.AncientKeysIconButton
+import com.ancientkeys.keyboard.ui.theme.ancientKeysColors
 
 /**
- * In-app About, Privacy Policy, and Open Source Licenses screen.
+ * AncientKeys v1.1 In-app About, Privacy Policy, and Open Source Licenses screen.
  *
  * Provides comprehensive transparency regarding application versioning, offline architecture,
- * privacy guarantees, font licensing (OFL 1.1), and scholarly citations.
+ * privacy guarantees, font licensing (SIL OFL 1.1), and epigraphic citations.
+ * Styled with the Scholarly Calm / Minimal Sage design system tokens.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(
     onNavigateBack: () -> Unit,
@@ -52,27 +53,16 @@ fun AboutScreen(
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
 
+    // Intercept hardware and gesture back
+    BackHandler {
+        onNavigateBack()
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "About AncientKeys",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Text("←", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            )
+            AboutTopBar(onBackClick = onNavigateBack)
         }
     ) { innerPadding ->
         Column(
@@ -80,31 +70,87 @@ fun AboutScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            PrimaryTabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.surface
+            // Segmented Minimal Sage Tab Selector
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.ancientKeysColors.chipBackground)
+                    .padding(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = { Text("Overview", fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
-                )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = { Text("Privacy Policy", fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
-                )
-                Tab(
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 },
-                    text = { Text("Open Source", fontSize = 12.sp, fontWeight = FontWeight.SemiBold) }
-                )
+                listOf("Overview", "Privacy Policy", "Open Source").forEachIndexed { idx, title ->
+                    val isSelected = selectedTab == idx
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(34.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                            )
+                            .clickable { selectedTab = idx },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = title,
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.ancientKeysColors.keyText
+                        )
+                    }
+                }
             }
 
             when (selectedTab) {
                 0 -> AboutOverviewContent()
                 1 -> AboutPrivacyContent()
                 2 -> AboutLicensesContent()
+            }
+        }
+    }
+}
+
+@Composable
+private fun AboutTopBar(onBackClick: () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.background,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AncientKeysIconButton(
+                onClick = onBackClick,
+                contentDescription = "Navigate Back",
+                size = 40.dp
+            ) {
+                Text(
+                    text = "‹",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Light,
+                    color = MaterialTheme.ancientKeysColors.keyText
+                )
+            }
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            Column {
+                Text(
+                    text = "About AncientKeys",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.ancientKeysColors.keyText
+                )
+                Text(
+                    text = "Offline epigraphy & open source licenses",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.ancientKeysColors.chipText
+                )
             }
         }
     }
@@ -119,38 +165,50 @@ private fun AboutOverviewContent() {
     ) {
         // App Identity Card
         item {
-            Card(
+            AncientKeysCard(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                ),
-                shape = RoundedCornerShape(12.dp)
+                containerColor = MaterialTheme.ancientKeysColors.cardBackground,
+                borderColor = MaterialTheme.ancientKeysColors.cardBorder
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(18.dp),
+                        .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         text = "🏛️ AncientKeys",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        color = MaterialTheme.ancientKeysColors.keyText
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Version 1.0 (Release Candidate)",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
+                        text = "Ancient scripts made easy",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.ancientKeysColors.chipText
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.ancientKeysColors.chipBackground)
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "v1.0 (Development build v1.1)",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = "Universal Historical Writing Systems & Epigraphic Research Platform",
                         style = MaterialTheme.typography.bodySmall,
                         textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                        color = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.8f)
                     )
                 }
             }
@@ -158,12 +216,10 @@ private fun AboutOverviewContent() {
 
         // Technical Specifications
         item {
-            Card(
+            AncientKeysCard(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                ),
-                shape = RoundedCornerShape(10.dp)
+                containerColor = MaterialTheme.ancientKeysColors.cardBackground,
+                borderColor = MaterialTheme.ancientKeysColors.cardBorder
             ) {
                 Column(
                     modifier = Modifier
@@ -175,9 +231,12 @@ private fun AboutOverviewContent() {
                         text = "System Metadata & Compatibility",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.ancientKeysColors.keyText
                     )
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        color = MaterialTheme.ancientKeysColors.cardBorder.copy(alpha = 0.4f)
+                    )
                     MetadataRow("Package ID", "com.ancientkeys.keyboard")
                     MetadataRow("Architecture", "Kotlin, Jetpack Compose, Material 3")
                     MetadataRow("Android Min SDK", "API 26 (Android 8.0 Oreo)")
@@ -188,7 +247,7 @@ private fun AboutOverviewContent() {
             }
         }
 
-        // Supported Writing Systems
+        // Supported Writing Systems Header
         item {
             Text(
                 text = "Supported Historical Writing Systems",
@@ -198,6 +257,7 @@ private fun AboutOverviewContent() {
             )
         }
 
+        // 6 Historical Writing Systems
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ScriptSummaryItem(
@@ -255,23 +315,24 @@ private fun AboutPrivacyContent() {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Card(
+            AncientKeysCard(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-                shape = RoundedCornerShape(10.dp)
+                containerColor = MaterialTheme.ancientKeysColors.chipBackground,
+                borderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Text(
                         text = "🔒 Zero Network Permission Guarantee",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                        color = MaterialTheme.ancientKeysColors.keyText
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "AncientKeys has zero network permissions in its AndroidManifest.xml. The application cannot connect to the internet, make HTTP requests, or send telemetry under any circumstances.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                        color = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.85f),
+                        lineHeight = 17.sp
                     )
                 }
             }
@@ -324,26 +385,27 @@ private fun AboutLicensesContent() {
         }
 
         item {
-            Card(
+            AncientKeysCard(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                shape = RoundedCornerShape(10.dp)
+                containerColor = MaterialTheme.ancientKeysColors.cardBackground,
+                borderColor = MaterialTheme.ancientKeysColors.cardBorder
             ) {
                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = "Google Noto Fonts (SIL Open Font License 1.1)",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
+                        fontSize = 13.sp,
+                        color = MaterialTheme.ancientKeysColors.keyText
                     )
                     Text(
                         text = "Bundled fonts: Noto Sans Brahmi, Noto Sans Egyptian Hieroglyphs, Noto Sans Kharosthi, Noto Sans Phoenician, Noto Sans Runic.",
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.ancientKeysColors.chipText
                     )
                     Text(
                         text = "Copyright (c) 2013-2022 Google Inc. All Rights Reserved. Licensed under the SIL Open Font License, Version 1.1. Full notice is bundled in app assets at fonts/OFL_NOTICE.txt.",
                         fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.outline
+                        color = MaterialTheme.ancientKeysColors.chipText.copy(alpha = 0.8f)
                     )
                 }
             }
@@ -359,32 +421,37 @@ private fun AboutLicensesContent() {
         }
 
         item {
-            Card(
+            AncientKeysCard(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                shape = RoundedCornerShape(10.dp)
+                containerColor = MaterialTheme.ancientKeysColors.cardBackground,
+                borderColor = MaterialTheme.ancientKeysColors.cardBorder
             ) {
                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
                         text = "AndroidX & Jetpack Compose (Apache 2.0)",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
+                        fontSize = 13.sp,
+                        color = MaterialTheme.ancientKeysColors.keyText
                     )
                     Text(
                         text = "androidx.core:core-ktx, androidx.lifecycle, androidx.activity:activity-compose, androidx.compose.material3, androidx.compose.ui.",
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.ancientKeysColors.chipText
                     )
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        color = MaterialTheme.ancientKeysColors.cardBorder.copy(alpha = 0.4f)
+                    )
                     Text(
                         text = "JUnit 4 (Eclipse Public License 1.0)",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
+                        fontSize = 13.sp,
+                        color = MaterialTheme.ancientKeysColors.keyText
                     )
                     Text(
                         text = "Used exclusively for host-side unit testing.",
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.ancientKeysColors.chipText
                     )
                 }
             }
@@ -400,10 +467,10 @@ private fun AboutLicensesContent() {
         }
 
         item {
-            Card(
+            AncientKeysCard(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                shape = RoundedCornerShape(10.dp)
+                containerColor = MaterialTheme.ancientKeysColors.cardBackground,
+                borderColor = MaterialTheme.ancientKeysColors.cardBorder
             ) {
                 Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     CitationLine("Sir Alan Gardiner (1957)", "Egyptian Grammar: Being an Introduction to the Study of Hieroglyphs.")
@@ -425,8 +492,8 @@ private fun MetadataRow(label: String, value: String) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(text = value, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text = label, fontSize = 11.sp, color = MaterialTheme.ancientKeysColors.chipText)
+        Text(text = value, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.ancientKeysColors.keyText)
     }
 }
 
@@ -438,36 +505,67 @@ private fun ScriptSummaryItem(
     direction: String,
     engine: String
 ) {
-    Card(
+    AncientKeysCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        containerColor = MaterialTheme.ancientKeysColors.cardBackground,
+        borderColor = MaterialTheme.ancientKeysColors.cardBorder
     ) {
         Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(text = name, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                Text(text = code, fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontFamily = FontFamily.Monospace)
+                Text(
+                    text = name,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = MaterialTheme.ancientKeysColors.keyText
+                )
+                Text(
+                    text = code,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontFamily = FontFamily.Monospace
+                )
             }
-            Text(text = "Period: $period", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(text = "Direction: $direction", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(text = "Engine: $engine", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.tertiary)
+            Text(
+                text = "Period: $period",
+                fontSize = 11.sp,
+                color = MaterialTheme.ancientKeysColors.chipText
+            )
+            Text(
+                text = "Direction: $direction",
+                fontSize = 11.sp,
+                color = MaterialTheme.ancientKeysColors.chipText
+            )
+            Text(
+                text = "Engine: $engine",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
 
 @Composable
 private fun PrivacyPrincipleItem(title: String, description: String) {
-    Card(
+    AncientKeysCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        containerColor = MaterialTheme.ancientKeysColors.cardBackground,
+        borderColor = MaterialTheme.ancientKeysColors.cardBorder
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(text = title, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+            Text(
+                text = title,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
             Spacer(modifier = Modifier.height(3.dp))
-            Text(text = description, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, lineHeight = 16.sp)
+            Text(
+                text = description,
+                fontSize = 11.sp,
+                color = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.85f),
+                lineHeight = 16.sp
+            )
         }
     }
 }
@@ -475,8 +573,16 @@ private fun PrivacyPrincipleItem(title: String, description: String) {
 @Composable
 private fun CitationLine(author: String, work: String) {
     Column {
-        Text(text = author, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-        Text(text = work, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            text = author,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.ancientKeysColors.keyText
+        )
+        Text(
+            text = work,
+            fontSize = 10.sp,
+            color = MaterialTheme.ancientKeysColors.chipText
+        )
     }
 }
-

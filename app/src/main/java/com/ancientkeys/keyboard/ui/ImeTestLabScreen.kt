@@ -2,19 +2,25 @@ package com.ancientkeys.keyboard.ui
 
 import android.content.Context
 import android.view.inputmethod.InputMethodManager
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,20 +28,16 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -45,6 +47,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -55,20 +58,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ancientkeys.keyboard.ime.romanization.BrahmiRomanizer
 import com.ancientkeys.keyboard.ime.romanization.ScriptRomanizerProvider
-import com.ancientkeys.keyboard.model.ScriptRegistry
+import com.ancientkeys.keyboard.ui.components.AncientKeysCard
+import com.ancientkeys.keyboard.ui.components.AncientKeysIconButton
+import com.ancientkeys.keyboard.ui.theme.AncientKeysDesignTokens
+import com.ancientkeys.keyboard.ui.theme.ancientKeysColors
 import com.ancientkeys.keyboard.util.HistoricalFontProvider
 
 /**
- * Dedicated In-App IME Testing Screen ("Test Lab").
+ * AncientKeys v1.1 In-App IME Testing Screen ("Test Lab").
  *
- * Provides synthetic editable fields of various Android input types (Normal single-line,
- * Multiline, Numeric, and Sensitive Password) with live Unicode analysis, character count,
- * script detection, and a system keyboard switcher.
- *
- * All inputs are strictly local and synthetic to verify IME behavior without touching
- * real passwords, personal chats, or external apps.
+ * Implements:
+ * - Professional header with Back (`‹`) and Reset All actions
+ * - 4 dedicated synthetic test fields: Normal Text, Multiline Inscription, Numeric, and Password Shield
+ * - Quick Glyph Insertion chips for testing RTL, Greek, Runic, and Hieroglyphic rendering
+ * - Syllable Composition & Transliteration preview
+ * - Programmatic self-diagnostic audit runner
+ * - Live Inspector reporting UTF-16 code units, Unicode code points, detected scripts, and hex codes
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ImeTestLabScreen(
     onBackClick: () -> Unit
@@ -111,22 +118,56 @@ fun ImeTestLabScreen(
         }
     }
 
+    // Intercept hardware/gesture Back
+    BackHandler {
+        onBackClick()
+    }
+
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "🧪 IME Test Lab",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Text("←", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Surface(
+                color = MaterialTheme.colorScheme.background,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AncientKeysIconButton(
+                            onClick = onBackClick,
+                            contentDescription = "Navigate Back",
+                            size = 40.dp
+                        ) {
+                            Text(
+                                text = "‹",
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Light,
+                                color = MaterialTheme.ancientKeysColors.keyText
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        Column {
+                            Text(
+                                text = "IME Test Lab",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.ancientKeysColors.keyText
+                            )
+                            Text(
+                                text = "Synthetic field diagnostics & IME verification",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.ancientKeysColors.chipText
+                            )
+                        }
                     }
-                },
-                actions = {
+
                     TextButton(
                         onClick = {
                             normalText = ""
@@ -135,14 +176,10 @@ fun ImeTestLabScreen(
                             passwordText = ""
                         }
                     ) {
-                        Text("Reset All", color = MaterialTheme.colorScheme.error)
+                        Text("Reset All", color = MaterialTheme.colorScheme.error, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            )
+                }
+            }
         }
     ) { innerPadding ->
         Column(
@@ -150,105 +187,108 @@ fun ImeTestLabScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // Environment Banner
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                ),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
+            AncientKeysCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                containerColor = MaterialTheme.ancientKeysColors.cardBackground,
+                borderColor = MaterialTheme.ancientKeysColors.cardBorder
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
+                Column(modifier = Modifier.padding(14.dp)) {
                     Text(
-                        text = "🔒 Synthetic Local Test Environment",
+                        text = "🔒 Local Synthetic Testing Environment",
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.ancientKeysColors.keyText
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Test AncientKeys system keyboard behavior across different Android input field types. " +
-                                "All tests run locally in memory. Never enter real personal passwords.",
+                        text = "Verify AncientKeys system keyboard behavior across single-line, multiline, numeric, and password inputs. All tests execute in local memory.",
                         fontSize = 12.sp,
-                        lineHeight = 16.sp
+                        color = MaterialTheme.ancientKeysColors.chipText,
+                        lineHeight = 17.sp
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Button(
                         onClick = {
                             val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
                             imm?.showInputMethodPicker()
                         },
                         modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
+                            containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                            contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
                         )
                     ) {
-                        Text("Switch Active Keyboard (IME Picker)", fontSize = 13.sp)
+                        Text("Switch Active Keyboard (IME Picker)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
 
             // Quick Samples Bar
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
+            AncientKeysCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                containerColor = MaterialTheme.ancientKeysColors.cardBackground,
+                borderColor = MaterialTheme.ancientKeysColors.cardBorder
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
+                Column(modifier = Modifier.padding(14.dp)) {
                     Text(
-                        text = "Insert Test Glyph Samples into Active Field:",
+                        text = "Quick Sample Glyphs (Tap to insert into active field):",
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 12.sp
+                        fontSize = 12.sp,
+                        color = MaterialTheme.ancientKeysColors.keyText
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        SuggestionChip(
-                            onClick = { appendSample("𓇳𓏤 Ra ") },
-                            label = { Text("Egyptian: 𓇳𓏤", fontSize = 11.sp) }
-                        )
-                        SuggestionChip(
-                            onClick = { appendSample("𐤀𐤁𐤂 ") },
-                            label = { Text("Phoenician (RTL): 𐤀𐤁𐤂", fontSize = 11.sp) }
-                        )
-                        SuggestionChip(
-                            onClick = { appendSample("𐨐𐨁𐨟 ") },
-                            label = { Text("Kharosthi (RTL): 𐨐𐨁𐨟", fontSize = 11.sp) }
-                        )
-                        SuggestionChip(
-                            onClick = { appendSample("ᚠᚢᚦ ") },
-                            label = { Text("Runic: ᚠᚢᚦ", fontSize = 11.sp) }
-                        )
-                        SuggestionChip(
-                            onClick = { appendSample("𑀅𑀰𑁄𑀓 ") },
-                            label = { Text("Brahmi: 𑀅𑀰𑁄𑀓", fontSize = 11.sp) }
-                        )
-                        SuggestionChip(
-                            onClick = { appendSample("King 𓇳 = 42 ") },
-                            label = { Text("Mixed Script", fontSize = 11.sp) }
-                        )
+                        listOf(
+                            "Egyptian: 𓇳𓏤" to "𓇳𓏤 Ra ",
+                            "Phoenician (RTL): 𐤀𐤁𐤂" to "𐤀𐤁𐤂 ",
+                            "Kharosthi (RTL): 𐨐𐨁𐨟" to "𐨐𐨁𐨟 ",
+                            "Runic: ᚠᚢᚦ" to "ᚠᚢᚦ ",
+                            "Brahmi: 𑀅𑀰𑁄𑀓" to "𑀅𑀰𑁄𑀓 ",
+                            "Greek: Ἀρχαῖα" to "Ἀρχαῖα "
+                        ).forEach { (label, glyph) ->
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.ancientKeysColors.chipBackground,
+                                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder.copy(alpha = 0.6f)),
+                                modifier = Modifier.clickable { appendSample(glyph) }
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.ancientKeysColors.keyText,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }
 
-            // Character Composition Preview (Consonant + Matras)
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                modifier = Modifier.fillMaxWidth()
+            // Syllable Composition & Transliteration Preview
+            AncientKeysCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                containerColor = MaterialTheme.ancientKeysColors.cardBackground,
+                borderColor = MaterialTheme.ancientKeysColors.cardBorder
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
+                Column(modifier = Modifier.padding(14.dp)) {
                     Text(
                         text = "Historical Script Composition & Transliteration Preview",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.primary
+                        fontSize = 13.sp,
+                        color = MaterialTheme.ancientKeysColors.keyText
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     // Script selector
                     Row(
@@ -256,13 +296,18 @@ fun ImeTestLabScreen(
                         modifier = Modifier.padding(bottom = 6.dp)
                     ) {
                         listOf("brahmi" to "Brahmi", "kharosthi" to "Kharosthi", "greek" to "Greek").forEach { (id, name) ->
+                            val isSelected = compositionScriptId == id
                             FilterChip(
-                                selected = compositionScriptId == id,
+                                selected = isSelected,
                                 onClick = {
                                     compositionScriptId = id
                                     selectedConsonant = if (id == "greek") "a" else "k"
                                 },
-                                label = { Text(name, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                                label = { Text(name, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                                    selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
+                                ),
                                 modifier = Modifier.height(28.dp)
                             )
                         }
@@ -281,11 +326,16 @@ fun ImeTestLabScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         keysForScript.forEach { c ->
+                            val isSelected = selectedConsonant == c
                             FilterChip(
-                                selected = selectedConsonant == c,
+                                selected = isSelected,
                                 onClick = { selectedConsonant = c },
-                                label = { Text(c, fontSize = 11.sp) },
-                                modifier = Modifier.height(28.dp)
+                                label = { Text(c, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                                    selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
+                                ),
+                                modifier = Modifier.height(26.dp)
                             )
                         }
                     }
@@ -294,7 +344,7 @@ fun ImeTestLabScreen(
                     Text(
                         text = "Tap any composed glyph/syllable to insert into active field:",
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.ancientKeysColors.chipText
                     )
                     Spacer(modifier = Modifier.height(4.dp))
 
@@ -310,55 +360,62 @@ fun ImeTestLabScreen(
                     ) {
                         previews.forEach { preview ->
                             val glyph = preview.scriptResult.split(" ")[0]
-                            SuggestionChip(
-                                onClick = {
-                                    appendSample(glyph)
-                                },
-                                label = {
-                                    Text(
-                                        text = "${preview.latinInput} → ${preview.scriptResult}",
-                                        fontFamily = HistoricalFontProvider.getFontFamily(context, compositionScriptId),
-                                        fontSize = 11.sp
-                                    )
-                                }
-                            )
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.ancientKeysColors.chipBackground,
+                                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder.copy(alpha = 0.6f)),
+                                modifier = Modifier.clickable { appendSample(glyph) }
+                            ) {
+                                Text(
+                                    text = "${preview.latinInput} → ${preview.scriptResult}",
+                                    fontFamily = HistoricalFontProvider.getFontFamily(context, compositionScriptId),
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.ancientKeysColors.keyText,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
                         }
                     }
                 }
             }
 
             // Automated Self-Diagnostic Audit Card
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+            AncientKeysCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                containerColor = MaterialTheme.ancientKeysColors.cardBackground,
+                borderColor = MaterialTheme.ancientKeysColors.cardBorder
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
+                Column(modifier = Modifier.padding(14.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "🧪 Automated Test Lab Audit",
+                            text = "Automated Diagnostic Engine",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            fontSize = 13.sp,
+                            color = MaterialTheme.ancientKeysColors.keyText
                         )
                         Button(
                             onClick = {
                                 auditResults = TestLabValidator.runFullAudit()
                             },
-                            contentPadding = ButtonDefaults.TextButtonContentPadding,
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                                contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
+                            ),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            modifier = Modifier.height(30.dp)
                         ) {
-                            Text("Run Audit", fontSize = 11.sp)
+                            Text("Run Audit", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 
                     if (auditResults != null) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         auditResults!!.forEach { r ->
                             Row(
                                 modifier = Modifier
@@ -367,7 +424,7 @@ fun ImeTestLabScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(r.name, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                Text(r.name, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.ancientKeysColors.keyText)
                                 Text(
                                     text = if (r.passed) "✓ PASS" else "✗ FAIL",
                                     fontWeight = FontWeight.Bold,
@@ -378,7 +435,7 @@ fun ImeTestLabScreen(
                             Text(
                                 text = r.details,
                                 fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.ancientKeysColors.chipText
                             )
                             if (!r.passed && r.actionableResolution.isNotBlank()) {
                                 Text(
@@ -400,9 +457,10 @@ fun ImeTestLabScreen(
                     normalText = it
                     activeFieldIndex = 0
                 },
-                label = { Text("1. Normal Text Field (Single Line)") },
-                placeholder = { Text("Type English, Greek, Runic, Hieroglyphs...") },
+                label = { Text("1. Normal Text Field (Single Line)", fontSize = 12.sp) },
+                placeholder = { Text("Type English, Greek, Runic, Hieroglyphs...", fontSize = 12.sp) },
                 singleLine = true,
+                shape = RoundedCornerShape(10.dp),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Text,
                     imeAction = ImeAction.Done
@@ -417,10 +475,11 @@ fun ImeTestLabScreen(
                     multilineText = it
                     activeFieldIndex = 1
                 },
-                label = { Text("2. Multiline Inscription Field") },
-                placeholder = { Text("Test line breaks (↵), spaces, and cursor positioning...") },
+                label = { Text("2. Multiline Inscription Field", fontSize = 12.sp) },
+                placeholder = { Text("Test line breaks (↵), spaces, and cursor positioning...", fontSize = 12.sp) },
                 singleLine = false,
                 minLines = 3,
+                shape = RoundedCornerShape(10.dp),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Text,
                     imeAction = ImeAction.Default
@@ -435,9 +494,10 @@ fun ImeTestLabScreen(
                     numericText = it
                     activeFieldIndex = 2
                 },
-                label = { Text("3. Numeric Field (Digits & Numerals)") },
-                placeholder = { Text("Test modern 0–9 and historical numerals...") },
+                label = { Text("3. Numeric Field (Digits & Numerals)", fontSize = 12.sp) },
+                placeholder = { Text("Test modern 0–9 and historical numerals...", fontSize = 12.sp) },
                 singleLine = true,
+                shape = RoundedCornerShape(10.dp),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Number,
                     imeAction = ImeAction.Next
@@ -446,16 +506,15 @@ fun ImeTestLabScreen(
             )
 
             // 4. Sensitive Password Field (Shield Test)
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
-                ),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
+            AncientKeysCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f),
+                borderColor = MaterialTheme.colorScheme.error.copy(alpha = 0.4f)
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
+                Column(modifier = Modifier.padding(14.dp)) {
                     Text(
-                        text = "🛡️ 4. Synthetic Password Field (Shield Verification)",
+                        text = "🛡️ 4. Sensitive Password Field (Shield Verification)",
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.error
@@ -465,7 +524,7 @@ fun ImeTestLabScreen(
                         text = "Expected IME behavior: When AncientKeys focuses this field, it MUST hide historical keys " +
                                 "and display the Password Shield, recommending switching back to the default keyboard.",
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.ancientKeysColors.chipText
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
@@ -474,9 +533,10 @@ fun ImeTestLabScreen(
                             passwordText = it
                             activeFieldIndex = 3
                         },
-                        label = { Text("Synthetic Password Field") },
-                        placeholder = { Text("Focus this field to test IME shield") },
+                        label = { Text("Synthetic Password Field", fontSize = 12.sp) },
+                        placeholder = { Text("Focus this field to test IME shield", fontSize = 12.sp) },
                         singleLine = true,
+                        shape = RoundedCornerShape(10.dp),
                         visualTransformation = PasswordVisualTransformation(),
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Password,
@@ -487,15 +547,12 @@ fun ImeTestLabScreen(
                 }
             }
 
-            // Live Unicode & Script Diagnostics Card
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                ),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+            // Live Unicode & Script Diagnostics Inspector Card
+            AncientKeysCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                containerColor = MaterialTheme.ancientKeysColors.cardBackground,
+                borderColor = MaterialTheme.ancientKeysColors.cardBorder
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Row(
@@ -506,9 +563,10 @@ fun ImeTestLabScreen(
                         Text(
                             text = "📊 Live Inspector: $activeFieldName",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
+                            fontSize = 13.sp,
+                            color = MaterialTheme.ancientKeysColors.keyText
                         )
-                        Button(
+                        OutlinedButton(
                             onClick = {
                                 when (activeFieldIndex) {
                                     0 -> normalText = ""
@@ -517,10 +575,12 @@ fun ImeTestLabScreen(
                                     3 -> passwordText = ""
                                 }
                             },
-                            contentPadding = ButtonDefaults.TextButtonContentPadding,
-                            colors = ButtonDefaults.outlinedButtonColors()
+                            shape = RoundedCornerShape(6.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            modifier = Modifier.height(26.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder)
                         ) {
-                            Text("Clear", fontSize = 11.sp)
+                            Text("Clear", fontSize = 11.sp, color = MaterialTheme.ancientKeysColors.keyText)
                         }
                     }
 
@@ -531,8 +591,8 @@ fun ImeTestLabScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("UTF-16 Code Units: ${activeText.length}", fontSize = 12.sp)
-                        Text("Unicode Code Points: $codePointCount", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text("UTF-16 Code Units: ${activeText.length}", fontSize = 12.sp, color = MaterialTheme.ancientKeysColors.chipText)
+                        Text("Unicode Code Points: $codePointCount", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.ancientKeysColors.keyText)
                     }
 
                     Spacer(modifier = Modifier.height(6.dp))
@@ -541,37 +601,46 @@ fun ImeTestLabScreen(
                     Text(
                         text = "Detected Scripts (${detectedScripts.size}):",
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.ancientKeysColors.keyText
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     if (detectedScripts.isEmpty()) {
-                        Text("None (Field is empty)", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
+                        Text("None (Field is empty)", fontSize = 11.sp, color = MaterialTheme.ancientKeysColors.chipText)
                     } else {
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             detectedScripts.forEach { scriptName ->
-                                SuggestionChip(
-                                    onClick = {},
-                                    label = { Text(scriptName, fontSize = 11.sp) }
-                                )
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.ancientKeysColors.chipBackground,
+                                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder.copy(alpha = 0.6f))
+                                ) {
+                                    Text(
+                                        text = scriptName,
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.ancientKeysColors.keyText,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
                             }
                         }
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Code point breakdown (up to first 12 code points)
                     Text(
                         text = "Hex Code Points (Sample):",
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.ancientKeysColors.keyText
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     val codePointsList = getCodePointsList(activeText, maxCount = 12)
                     if (codePointsList.isEmpty()) {
-                        Text("—", fontSize = 11.sp, color = MaterialTheme.colorScheme.outline)
+                        Text("—", fontSize = 11.sp, color = MaterialTheme.ancientKeysColors.chipText)
                     } else {
                         Text(
                             text = codePointsList.joinToString("  "),
@@ -585,7 +654,6 @@ fun ImeTestLabScreen(
         }
     }
 }
-
 
 /**
  * Detects which scripts (historical or modern) are present in the given text.
