@@ -8,6 +8,7 @@ import android.view.View
 import android.view.Window
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import androidx.core.view.WindowCompat
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -81,6 +82,10 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
     override fun onConfigureWindow(win: Window, isFullscreen: Boolean, isCandidatesOnly: Boolean) {
         super.onConfigureWindow(win, isFullscreen, isCandidatesOnly)
         ensureDecorViewOwners()
+        try {
+            WindowCompat.setDecorFitsSystemWindows(win, false)
+        } catch (_: Exception) {
+        }
     }
 
     override fun onEvaluateInputViewShown(): Boolean {

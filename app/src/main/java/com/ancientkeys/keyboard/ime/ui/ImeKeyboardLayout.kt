@@ -12,6 +12,15 @@ import com.ancientkeys.keyboard.ime.phonetic.PhoneticCandidate
 import com.ancientkeys.keyboard.ime.romanization.BrahmiRomanizer
 import com.ancientkeys.keyboard.ime.romanization.ScriptRomanizerProvider
 import com.ancientkeys.keyboard.util.HistoricalFontProvider
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -84,36 +93,73 @@ fun ImeKeyboardLayout(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val userPrefs = remember { UserPreferencesRepository.getInstance(context) }
-    val keyboardHeightDp = remember { userPrefs.getKeyboardHeightDp() }
+    val userPrefsHeight = remember { userPrefs.getKeyboardHeightDp() }
+
+    // Determine initial preferred script
+    val preferredScriptId = remember {
+        val recents = userPrefs.getRecentScriptIds()
+        recents.firstOrNull { ScriptRegistry.getScriptById(it) != null } ?: initialScriptId
+    }
+
+    var currentScriptId by rememberSaveable { mutableStateOf(preferredScriptId) }
+    var keyboardMode by rememberSaveable {
+        val initialMode = if (EasyPhoneticProvider.isPhoneticSupported(preferredScriptId))
+            KeyboardMode.EASY_PHONETIC else KeyboardMode.HISTORICAL
+        mutableStateOf(initialMode)
+    }
 
     val isSensitive = remember(editorInfo?.inputType) {
         ImeInputHelper.isSensitiveField(editorInfo)
     }
 
+    val baseAdaptiveHeight = remember(configuration.screenHeightDp, isLandscape, keyboardMode, userPrefsHeight) {
+        ImeDimensionsHelper.computeAdaptiveKeyboardHeight(
+            screenHeightDp = configuration.screenHeightDp,
+            isLandscape = isLandscape,
+            keyboardMode = keyboardMode,
+            userPreferenceHeightDp = userPrefsHeight
+        )
+    }
+
+    val bottomNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val totalSurfaceHeight = baseAdaptiveHeight.dp + bottomNavInset
+
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .height(keyboardHeightDp.dp),
+            .height(totalSurfaceHeight),
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 6.dp
     ) {
-        if (isSensitive) {
-            // Protected View for Password & Sensitive Fields
-            SensitiveFieldFallbackView(
-                onSwitchKeyboardClick = onSwitchKeyboardClick
-            )
-        } else {
-            // Multi-Mode Professional Keyboard (Historical, English QWERTY, Numbers & Symbols)
-            MultiModeKeyboardContent(
-                userPrefs = userPrefs,
-                initialScriptId = initialScriptId,
-                onKeyClick = onKeyClick,
-                onSpaceClick = onSpaceClick,
-                onBackspaceClick = onBackspaceClick,
-                onEnterClick = onEnterClick,
-                onSwitchKeyboardClick = onSwitchKeyboardClick
-            )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = bottomNavInset)
+        ) {
+            if (isSensitive) {
+                // Protected View for Password & Sensitive Fields
+                SensitiveFieldFallbackView(
+                    onSwitchKeyboardClick = onSwitchKeyboardClick
+                )
+            } else {
+                // Multi-Mode Professional Keyboard (Historical, English QWERTY, Numbers & Symbols)
+                MultiModeKeyboardContent(
+                    userPrefs = userPrefs,
+                    currentScriptId = currentScriptId,
+                    onScriptChange = { currentScriptId = it },
+                    keyboardMode = keyboardMode,
+                    onKeyboardModeChange = { keyboardMode = it },
+                    isLandscape = isLandscape,
+                    onKeyClick = onKeyClick,
+                    onSpaceClick = onSpaceClick,
+                    onBackspaceClick = onBackspaceClick,
+                    onEnterClick = onEnterClick,
+                    onSwitchKeyboardClick = onSwitchKeyboardClick
+                )
+            }
         }
     }
 }
@@ -172,7 +218,11 @@ private fun SensitiveFieldFallbackView(
 @Composable
 private fun MultiModeKeyboardContent(
     userPrefs: UserPreferencesRepository,
-    initialScriptId: String,
+    currentScriptId: String,
+    onScriptChange: (String) -> Unit,
+    keyboardMode: KeyboardMode,
+    onKeyboardModeChange: (KeyboardMode) -> Unit,
+    isLandscape: Boolean,
     onKeyClick: (ScriptKey) -> Unit,
     onSpaceClick: () -> Unit,
     onBackspaceClick: () -> Unit,
@@ -191,18 +241,6 @@ private fun MultiModeKeyboardContent(
         }
     }
 
-    // Determine initial preferred script
-    val preferredScriptId = remember {
-        val recents = userPrefs.getRecentScriptIds()
-        recents.firstOrNull { ScriptRegistry.getScriptById(it) != null } ?: initialScriptId
-    }
-
-    var currentScriptId by rememberSaveable { mutableStateOf(preferredScriptId) }
-    var keyboardMode by rememberSaveable {
-        val initialMode = if (EasyPhoneticProvider.isPhoneticSupported(preferredScriptId))
-            KeyboardMode.EASY_PHONETIC else KeyboardMode.HISTORICAL
-        mutableStateOf(initialMode)
-    }
     var shiftState by rememberSaveable { mutableStateOf(ShiftState.OFF) }
     var selectedCategoryIndex by rememberSaveable(currentScriptId) { mutableIntStateOf(0) }
     var showFavoritesOnly by rememberSaveable(currentScriptId) { mutableStateOf(false) }
@@ -263,7 +301,9 @@ private fun MultiModeKeyboardContent(
                         triggerHaptic()
                         isScriptMenuExpanded = true
                     },
-                    modifier = Modifier.height(32.dp),
+                    modifier = Modifier
+                        .height(if (isLandscape) 28.dp else 32.dp)
+                        .widthIn(max = 120.dp),
                     contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (keyboardMode == KeyboardMode.HISTORICAL)
@@ -275,9 +315,11 @@ private fun MultiModeKeyboardContent(
                     )
                 ) {
                     Text(
-                        text = "${currentScript.name} ▾",
+                        text = "${ImeDimensionsHelper.getCompactScriptName(currentScript)} ▾",
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
@@ -300,8 +342,8 @@ private fun MultiModeKeyboardContent(
                                 }
                             },
                             onClick = {
-                                currentScriptId = script.id
-                                keyboardMode = KeyboardMode.HISTORICAL
+                                onScriptChange(script.id)
+                                onKeyboardModeChange(KeyboardMode.HISTORICAL)
                                 selectedCategoryIndex = 0
                                 showFavoritesOnly = false
                                 isScriptMenuExpanded = false
@@ -313,8 +355,12 @@ private fun MultiModeKeyboardContent(
 
             // Mode Selector Pills: [Easy] [ABC] [Native] [?123] [Rom]
             Row(
-                modifier = Modifier.padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                modifier = Modifier
+                    .weight(1f)
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 // Easy Phonetic Mode Pill (for supported scripts: Brahmi, Kharosthi, Greek)
                 if (activePhoneticEngine != null) {
@@ -322,7 +368,7 @@ private fun MultiModeKeyboardContent(
                         selected = keyboardMode == KeyboardMode.EASY_PHONETIC,
                         onClick = {
                             triggerHaptic()
-                            keyboardMode = KeyboardMode.EASY_PHONETIC
+                            onKeyboardModeChange(KeyboardMode.EASY_PHONETIC)
                         },
                         label = { Text("Easy", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                         modifier = Modifier.height(28.dp),
@@ -338,7 +384,7 @@ private fun MultiModeKeyboardContent(
                     selected = keyboardMode == KeyboardMode.ENGLISH_QWERTY,
                     onClick = {
                         triggerHaptic()
-                        keyboardMode = KeyboardMode.ENGLISH_QWERTY
+                        onKeyboardModeChange(KeyboardMode.ENGLISH_QWERTY)
                     },
                     label = { Text("ABC", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                     modifier = Modifier.height(28.dp),
@@ -353,7 +399,7 @@ private fun MultiModeKeyboardContent(
                     selected = keyboardMode == KeyboardMode.HISTORICAL,
                     onClick = {
                         triggerHaptic()
-                        keyboardMode = KeyboardMode.HISTORICAL
+                        onKeyboardModeChange(KeyboardMode.HISTORICAL)
                     },
                     label = { Text("Native", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                     modifier = Modifier.height(28.dp),
@@ -368,7 +414,7 @@ private fun MultiModeKeyboardContent(
                     selected = keyboardMode == KeyboardMode.NUMBERS_SYMBOLS,
                     onClick = {
                         triggerHaptic()
-                        keyboardMode = KeyboardMode.NUMBERS_SYMBOLS
+                        onKeyboardModeChange(KeyboardMode.NUMBERS_SYMBOLS)
                     },
                     label = { Text("?123", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                     modifier = Modifier.height(28.dp),
@@ -384,7 +430,7 @@ private fun MultiModeKeyboardContent(
                         selected = keyboardMode == KeyboardMode.ROMANIZED,
                         onClick = {
                             triggerHaptic()
-                            keyboardMode = KeyboardMode.ROMANIZED
+                            onKeyboardModeChange(KeyboardMode.ROMANIZED)
                         },
                         label = { Text("Rom", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                         modifier = Modifier.height(28.dp),
@@ -402,10 +448,12 @@ private fun MultiModeKeyboardContent(
                     triggerHaptic()
                     onSwitchKeyboardClick()
                 },
-                modifier = Modifier.height(30.dp),
+                modifier = Modifier
+                    .height(if (isLandscape) 28.dp else 30.dp)
+                    .widthIn(min = 36.dp),
                 contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
             ) {
-                Text("🌐 Switch", fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                Text("🌐 Switch", fontSize = 10.sp, fontWeight = FontWeight.Medium, maxLines = 1)
             }
         }
 
@@ -473,7 +521,7 @@ private fun MultiModeKeyboardContent(
                     val layoutDirection = if (currentScript.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
                     CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
                         LazyVerticalGrid(
-                            columns = GridCells.Adaptive(minSize = 58.dp),
+                            columns = GridCells.Adaptive(minSize = if (isLandscape) 52.dp else 58.dp),
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(bottom = 2.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -484,6 +532,7 @@ private fun MultiModeKeyboardContent(
                                     key = scriptKey,
                                     scriptId = currentScript.id,
                                     isScholarMode = isScholarMode,
+                                    isLandscape = isLandscape,
                                     onClick = {
                                         triggerHaptic()
                                         onKeyClick(scriptKey)
@@ -497,6 +546,7 @@ private fun MultiModeKeyboardContent(
                 KeyboardMode.ENGLISH_QWERTY -> {
                     EnglishQwertyKeyboard(
                         shiftState = shiftState,
+                        isLandscape = isLandscape,
                         onShiftClick = {
                             triggerHaptic()
                             shiftState = EnglishKeyboardData.nextShiftState(shiftState)
@@ -521,6 +571,7 @@ private fun MultiModeKeyboardContent(
 
                 KeyboardMode.NUMBERS_SYMBOLS -> {
                     NumbersSymbolsKeyboard(
+                        isLandscape = isLandscape,
                         onSymbolClick = { symbol ->
                             triggerHaptic()
                             onKeyClick(ScriptKey(character = symbol, unicodeCodePoint = "U+%04X".format(symbol[0].code)))
@@ -681,6 +732,7 @@ private fun MultiModeKeyboardContent(
                         Box(modifier = Modifier.weight(1f)) {
                             EnglishQwertyKeyboard(
                                 shiftState = shiftState,
+                                isLandscape = isLandscape,
                                 onShiftClick = {
                                     triggerHaptic()
                                     shiftState = EnglishKeyboardData.nextShiftState(shiftState)
@@ -837,6 +889,7 @@ private fun MultiModeKeyboardContent(
                         Box(modifier = Modifier.weight(1f)) {
                             EnglishQwertyKeyboard(
                                 shiftState = shiftState,
+                                isLandscape = isLandscape,
                                 onShiftClick = {
                                     triggerHaptic()
                                     shiftState = EnglishKeyboardData.nextShiftState(shiftState)
@@ -942,10 +995,13 @@ private fun MultiModeKeyboardContent(
             }
         }
 
+        val bottomRowHeight = ImeDimensionsHelper.computeBottomRowHeight(isLandscape).dp
+
         // --- Bottom Control Row ---
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .height(bottomRowHeight)
                 .padding(top = 2.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -955,20 +1011,23 @@ private fun MultiModeKeyboardContent(
                 shape = RoundedCornerShape(6.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier
-                    .height(44.dp)
+                    .fillMaxHeight()
+                    .widthIn(min = 38.dp)
                     .clickable {
                         triggerHaptic()
-                        keyboardMode = when (keyboardMode) {
-                            KeyboardMode.HISTORICAL -> if (activePhoneticEngine != null) KeyboardMode.EASY_PHONETIC else KeyboardMode.ENGLISH_QWERTY
-                            KeyboardMode.EASY_PHONETIC -> KeyboardMode.ENGLISH_QWERTY
-                            KeyboardMode.ENGLISH_QWERTY -> KeyboardMode.NUMBERS_SYMBOLS
-                            KeyboardMode.NUMBERS_SYMBOLS -> if (activeRomanizer != null) KeyboardMode.ROMANIZED else KeyboardMode.HISTORICAL
-                            KeyboardMode.ROMANIZED -> KeyboardMode.HISTORICAL
-                        }
+                        onKeyboardModeChange(
+                            when (keyboardMode) {
+                                KeyboardMode.HISTORICAL -> if (activePhoneticEngine != null) KeyboardMode.EASY_PHONETIC else KeyboardMode.ENGLISH_QWERTY
+                                KeyboardMode.EASY_PHONETIC -> KeyboardMode.ENGLISH_QWERTY
+                                KeyboardMode.ENGLISH_QWERTY -> KeyboardMode.NUMBERS_SYMBOLS
+                                KeyboardMode.NUMBERS_SYMBOLS -> if (activeRomanizer != null) KeyboardMode.ROMANIZED else KeyboardMode.HISTORICAL
+                                KeyboardMode.ROMANIZED -> KeyboardMode.HISTORICAL
+                            }
+                        )
                     }
             ) {
                 Box(
-                    modifier = Modifier.padding(horizontal = 8.dp),
+                    modifier = Modifier.padding(horizontal = 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -979,9 +1038,10 @@ private fun MultiModeKeyboardContent(
                             KeyboardMode.NUMBERS_SYMBOLS -> "?123"
                             KeyboardMode.ROMANIZED -> "ROM"
                         },
-                        fontSize = 11.sp,
+                        fontSize = if (isLandscape) 10.sp else 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1
                     )
                 }
             }
@@ -994,8 +1054,8 @@ private fun MultiModeKeyboardContent(
                         onKeyClick(ScriptKey(character = ",", unicodeCodePoint = "U+002C"))
                     },
                     modifier = Modifier
-                        .height(44.dp)
-                        .width(42.dp)
+                        .fillMaxHeight()
+                        .widthIn(min = 34.dp, max = 40.dp)
                         .semantics { contentDescription = "Comma" },
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(0.dp),
@@ -1028,8 +1088,9 @@ private fun MultiModeKeyboardContent(
                     onSpaceClick()
                 },
                 modifier = Modifier
-                    .weight(3f)
-                    .height(44.dp)
+                    .weight(2.4f)
+                    .fillMaxHeight()
+                    .widthIn(min = ImeDimensionsHelper.MIN_SPACE_KEY_WIDTH_DP.dp)
                     .semantics { contentDescription = "Space" },
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -1039,14 +1100,16 @@ private fun MultiModeKeyboardContent(
             ) {
                 Text(
                     text = when (keyboardMode) {
-                        KeyboardMode.HISTORICAL -> "${currentScript.name} Space"
-                        KeyboardMode.EASY_PHONETIC -> "${currentScript.name} Space"
-                        KeyboardMode.ENGLISH_QWERTY -> "English Space"
+                        KeyboardMode.HISTORICAL -> "${ImeDimensionsHelper.getCompactScriptName(currentScript)} Space"
+                        KeyboardMode.EASY_PHONETIC -> "${ImeDimensionsHelper.getCompactScriptName(currentScript)} Space"
+                        KeyboardMode.ENGLISH_QWERTY -> "English"
                         KeyboardMode.NUMBERS_SYMBOLS -> "Space"
-                        KeyboardMode.ROMANIZED -> "${currentScript.name} Space"
+                        KeyboardMode.ROMANIZED -> "Space"
                     },
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
+                    fontSize = if (isLandscape) 11.sp else 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
@@ -1058,8 +1121,8 @@ private fun MultiModeKeyboardContent(
                         onKeyClick(ScriptKey(character = ".", unicodeCodePoint = "U+002E"))
                     },
                     modifier = Modifier
-                        .height(44.dp)
-                        .width(42.dp)
+                        .fillMaxHeight()
+                        .widthIn(min = 34.dp, max = 40.dp)
                         .semantics { contentDescription = "Period" },
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(0.dp),
@@ -1085,8 +1148,9 @@ private fun MultiModeKeyboardContent(
                     }
                 },
                 modifier = Modifier
-                    .weight(1.2f)
-                    .height(44.dp)
+                    .weight(1.3f)
+                    .fillMaxHeight()
+                    .widthIn(min = ImeDimensionsHelper.MIN_BACKSPACE_KEY_WIDTH_DP.dp)
                     .semantics { contentDescription = "Backspace" },
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -1094,7 +1158,7 @@ private fun MultiModeKeyboardContent(
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             ) {
-                Text("⌫", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("⌫", fontSize = if (isLandscape) 15.sp else 18.sp, fontWeight = FontWeight.Bold)
             }
 
             // Enter (↵)
@@ -1117,8 +1181,9 @@ private fun MultiModeKeyboardContent(
                     onEnterClick()
                 },
                 modifier = Modifier
-                    .weight(1.2f)
-                    .height(44.dp)
+                    .weight(1.3f)
+                    .fillMaxHeight()
+                    .widthIn(min = ImeDimensionsHelper.MIN_ENTER_KEY_WIDTH_DP.dp)
                     .semantics { contentDescription = "Enter" },
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -1126,7 +1191,7 @@ private fun MultiModeKeyboardContent(
                     contentColor = MaterialTheme.colorScheme.onTertiaryContainer
                 )
             ) {
-                Text("↵", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text("↵", fontSize = if (isLandscape) 15.sp else 18.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -1137,6 +1202,7 @@ private fun MultiModeKeyboardContent(
 @Composable
 private fun EnglishQwertyKeyboard(
     shiftState: ShiftState,
+    isLandscape: Boolean = false,
     onShiftClick: () -> Unit,
     onLetterClick: (String) -> Unit,
     onLetterLongClick: ((String) -> Unit)? = null,
@@ -1150,12 +1216,14 @@ private fun EnglishQwertyKeyboard(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(vertical = 2.dp),
+            .padding(vertical = 1.dp),
         verticalArrangement = Arrangement.SpaceEvenly
     ) {
         // Row 1
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
             horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             row1.forEach { char ->
@@ -1163,7 +1231,10 @@ private fun EnglishQwertyKeyboard(
                     label = char,
                     onClick = { onLetterClick(char) },
                     onLongClick = if (onLetterLongClick != null) { { onLetterLongClick(char) } } else null,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    isLandscape = isLandscape
                 )
             }
         }
@@ -1172,7 +1243,8 @@ private fun EnglishQwertyKeyboard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp),
+                .weight(1f)
+                .padding(horizontal = if (isLandscape) 8.dp else 12.dp),
             horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             row2.forEach { char ->
@@ -1180,14 +1252,19 @@ private fun EnglishQwertyKeyboard(
                     label = char,
                     onClick = { onLetterClick(char) },
                     onLongClick = if (onLetterLongClick != null) { { onLetterLongClick(char) } } else null,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    isLandscape = isLandscape
                 )
             }
         }
 
         // Row 3 (Shift, z-m, Backspace)
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
             horizontalArrangement = Arrangement.spacedBy(3.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1201,7 +1278,8 @@ private fun EnglishQwertyKeyboard(
                 onClick = onShiftClick,
                 modifier = Modifier
                     .weight(1.5f)
-                    .height(44.dp)
+                    .fillMaxHeight()
+                    .padding(vertical = 1.dp)
                     .semantics { contentDescription = shiftDesc },
                 shape = RoundedCornerShape(6.dp),
                 contentPadding = PaddingValues(0.dp),
@@ -1224,7 +1302,7 @@ private fun EnglishQwertyKeyboard(
                         ShiftState.ON_ONCE -> "⬆"
                         ShiftState.CAPS_LOCK -> "⇪"
                     },
-                    fontSize = 18.sp,
+                    fontSize = if (isLandscape) 15.sp else 18.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -1234,7 +1312,10 @@ private fun EnglishQwertyKeyboard(
                     label = char,
                     onClick = { onLetterClick(char) },
                     onLongClick = if (onLetterLongClick != null) { { onLetterLongClick(char) } } else null,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    isLandscape = isLandscape
                 )
             }
 
@@ -1243,7 +1324,8 @@ private fun EnglishQwertyKeyboard(
                 onClick = onBackspaceClick,
                 modifier = Modifier
                     .weight(1.5f)
-                    .height(44.dp)
+                    .fillMaxHeight()
+                    .padding(vertical = 1.dp)
                     .semantics { contentDescription = "Backspace" },
                 shape = RoundedCornerShape(6.dp),
                 contentPadding = PaddingValues(0.dp),
@@ -1252,7 +1334,7 @@ private fun EnglishQwertyKeyboard(
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             ) {
-                Text("⌫", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("⌫", fontSize = if (isLandscape) 14.sp else 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -1262,61 +1344,79 @@ private fun EnglishQwertyKeyboard(
 
 @Composable
 private fun NumbersSymbolsKeyboard(
+    isLandscape: Boolean = false,
     onSymbolClick: (String) -> Unit,
     onBackspaceClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(vertical = 2.dp),
+            .padding(vertical = 1.dp),
         verticalArrangement = Arrangement.SpaceEvenly
     ) {
         // Numbers 1-0 Row
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
             horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             EnglishKeyboardData.NUMBERS_ROW.forEach { num ->
                 QwertyKey(
                     label = num,
                     onClick = { onSymbolClick(num) },
-                    modifier = Modifier.weight(1f),
-                    isAccent = true
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    isAccent = true,
+                    isLandscape = isLandscape
                 )
             }
         }
 
         // Symbol Row 1
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
             horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             EnglishKeyboardData.SYMBOLS_ROW_1.forEach { sym ->
                 QwertyKey(
                     label = sym,
                     onClick = { onSymbolClick(sym) },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    isLandscape = isLandscape
                 )
             }
         }
 
         // Symbol Row 2
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
             horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             EnglishKeyboardData.SYMBOLS_ROW_2.forEach { sym ->
                 QwertyKey(
                     label = sym,
                     onClick = { onSymbolClick(sym) },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    isLandscape = isLandscape
                 )
             }
         }
 
         // Symbol Row 3 with Backspace
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
             horizontalArrangement = Arrangement.spacedBy(3.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1324,7 +1424,10 @@ private fun NumbersSymbolsKeyboard(
                 QwertyKey(
                     label = sym,
                     onClick = { onSymbolClick(sym) },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    isLandscape = isLandscape
                 )
             }
 
@@ -1332,7 +1435,8 @@ private fun NumbersSymbolsKeyboard(
                 onClick = onBackspaceClick,
                 modifier = Modifier
                     .weight(1.8f)
-                    .height(44.dp),
+                    .fillMaxHeight()
+                    .padding(vertical = 1.dp),
                 shape = RoundedCornerShape(6.dp),
                 contentPadding = PaddingValues(0.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -1340,7 +1444,7 @@ private fun NumbersSymbolsKeyboard(
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             ) {
-                Text("⌫", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("⌫", fontSize = if (isLandscape) 14.sp else 16.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -1355,13 +1459,14 @@ private fun QwertyKey(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
-    isAccent: Boolean = false
+    isAccent: Boolean = false,
+    isLandscape: Boolean = false
 ) {
     val hasAlts = remember(label) { LongPressAlternativesData.hasAlternatives(label) }
 
     Card(
         modifier = modifier
-            .height(44.dp)
+            .padding(vertical = 1.dp)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = if (hasAlts && onLongClick != null) onLongClick else null
@@ -1381,7 +1486,7 @@ private fun QwertyKey(
         ) {
             Text(
                 text = label,
-                fontSize = 17.sp,
+                fontSize = if (isLandscape) 14.sp else 17.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -1404,6 +1509,7 @@ private fun ImeKeyItem(
     key: ScriptKey,
     scriptId: String,
     isScholarMode: Boolean = false,
+    isLandscape: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1411,11 +1517,12 @@ private fun ImeKeyItem(
     val accessibleDesc = "${key.label}, ${UnicodeMetadataHelper.getOfficialUnicodeName(key)}"
     val context = LocalContext.current
     val fontFamily = remember(scriptId) { HistoricalFontProvider.getFontFamily(context, scriptId) }
+    val itemHeight = if (isLandscape) 42.dp else 52.dp
 
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(52.dp)
+            .height(itemHeight)
             .clickable(onClick = onClick)
             .semantics { contentDescription = accessibleDesc },
         shape = RoundedCornerShape(6.dp),
@@ -1434,7 +1541,7 @@ private fun ImeKeyItem(
             Text(
                 text = displayGlyph,
                 fontFamily = fontFamily,
-                fontSize = 20.sp,
+                fontSize = if (isLandscape) 17.sp else 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -1442,7 +1549,7 @@ private fun ImeKeyItem(
             if (isScholarMode) {
                 Text(
                     text = key.unicodeCodePoint,
-                    fontSize = 7.sp,
+                    fontSize = if (isLandscape) 6.sp else 7.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
@@ -1452,7 +1559,7 @@ private fun ImeKeyItem(
             } else if (key.phoneticHint.isNotEmpty()) {
                 Text(
                     text = key.phoneticHint,
-                    fontSize = 8.sp,
+                    fontSize = if (isLandscape) 7.sp else 8.sp,
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
