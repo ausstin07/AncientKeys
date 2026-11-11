@@ -19,6 +19,8 @@ import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
@@ -140,7 +142,10 @@ fun ImeKeyboardLayout(
         )
     }
 
-    val bottomNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val navBarPadding = WindowInsets.navigationBars.asPaddingValues()
+    val bottomNavInset = navBarPadding.calculateBottomPadding()
+    val startNavInset = navBarPadding.calculateStartPadding(androidx.compose.ui.platform.LocalLayoutDirection.current)
+    val endNavInset = navBarPadding.calculateEndPadding(androidx.compose.ui.platform.LocalLayoutDirection.current)
     val totalSurfaceHeight = baseAdaptiveHeight.dp + bottomNavInset
 
     Surface(
@@ -153,7 +158,11 @@ fun ImeKeyboardLayout(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = bottomNavInset)
+                .padding(
+                    bottom = bottomNavInset,
+                    start = if (isLandscape) startNavInset else 0.dp,
+                    end = if (isLandscape) endNavInset else 0.dp
+                )
         ) {
             if (isSensitive) {
                 // Protected View for Password & Sensitive Fields
@@ -164,6 +173,7 @@ fun ImeKeyboardLayout(
                 // Multi-Mode Professional Keyboard (Historical, English QWERTY, Numbers & Symbols)
                 MultiModeKeyboardContent(
                     userPrefs = userPrefs,
+                    editorInfo = editorInfo,
                     currentScriptId = currentScriptId,
                     onScriptChange = { currentScriptId = it },
                     keyboardMode = keyboardMode,
@@ -234,6 +244,7 @@ private fun SensitiveFieldFallbackView(
 @Composable
 private fun MultiModeKeyboardContent(
     userPrefs: UserPreferencesRepository,
+    editorInfo: EditorInfo?,
     currentScriptId: String,
     onScriptChange: (String) -> Unit,
     keyboardMode: KeyboardMode,
@@ -1289,22 +1300,28 @@ private fun MultiModeKeyboardContent(
                 Text("⌫", fontSize = if (isLandscape) 14.sp else 16.sp, fontWeight = FontWeight.Bold)
             }
 
-            // Enter (↵ / Enter ↵) - Prominent Sage Primary Action Key
+            // Enter / Action Key - Prominent Sage Primary Action Key matching EditorInfo semantics
+            val actionInfo = remember(editorInfo) { ImeInputHelper.getImeActionInfo(editorInfo) }
             Button(
                 onClick = {
                     triggerHaptic()
+                    // Phonetic & Romanized composition safety:
+                    // If an uncommitted composition buffer exists, commit the composed character
+                    // and clear the buffer without prematurely dispatching the editor action.
                     if (keyboardMode == KeyboardMode.EASY_PHONETIC && phoneticBuffer.isNotEmpty() && activePhoneticEngine != null) {
                         val converted = activePhoneticEngine.convert(phoneticBuffer)
                         if (converted.isNotEmpty()) {
                             onKeyClick(ScriptKey(character = converted, unicodeCodePoint = currentScript.id.uppercase()))
                         }
                         phoneticBuffer = ""
+                        return@Button
                     } else if (keyboardMode == KeyboardMode.ROMANIZED && romanizedBuffer.isNotEmpty() && activeRomanizer != null) {
                         val transliterated = activeRomanizer.transliterateToken(romanizedBuffer)
                         if (transliterated.isNotEmpty()) {
                             onKeyClick(ScriptKey(character = transliterated, unicodeCodePoint = currentScript.id.uppercase()))
                         }
                         romanizedBuffer = ""
+                        return@Button
                     }
                     onEnterClick()
                 },
@@ -1312,7 +1329,7 @@ private fun MultiModeKeyboardContent(
                     .weight(1.3f)
                     .fillMaxHeight()
                     .widthIn(min = ImeDimensionsHelper.MIN_ENTER_KEY_WIDTH_DP.dp)
-                    .semantics { contentDescription = "Enter" },
+                    .semantics { contentDescription = actionInfo.contentDescription },
                 shape = AncientKeysDesignTokens.Shapes.keyShape,
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -1321,8 +1338,8 @@ private fun MultiModeKeyboardContent(
                 )
             ) {
                 Text(
-                    text = if (isLandscape) "↵" else "Enter ↵",
-                    fontSize = if (isLandscape) 14.sp else 15.sp,
+                    text = if (isLandscape) actionInfo.compactLabel else actionInfo.displayLabel,
+                    fontSize = if (isLandscape) 14.sp else 13.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1
                 )

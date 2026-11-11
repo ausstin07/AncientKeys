@@ -7,6 +7,17 @@ import android.view.inputmethod.InputConnection
 import java.text.BreakIterator
 
 /**
+ * Context-aware display and semantic execution model for the IME primary action key.
+ */
+data class ImeActionDisplayInfo(
+    val actionId: Int,
+    val displayLabel: String,
+    val compactLabel: String,
+    val contentDescription: String,
+    val isEnterNewline: Boolean
+)
+
+/**
  * Handles communication with the Android [InputConnection] for the AncientKeys IME.
  *
  * Implements safe Unicode code point and grapheme cluster insertion and deletion,
@@ -130,19 +141,131 @@ object ImeInputHelper {
     }
 
     /**
-     * Handles the Enter / Action key based on the target editor's [EditorInfo.imeOptions].
+     * Resolves the primary action key display metadata and semantic execution target
+     * based on Android [EditorInfo] flags, options, and custom actions.
+     */
+    fun getImeActionInfo(editorInfo: EditorInfo?): ImeActionDisplayInfo {
+        if (editorInfo == null) {
+            return ImeActionDisplayInfo(
+                actionId = EditorInfo.IME_ACTION_UNSPECIFIED,
+                displayLabel = "Enter ↵",
+                compactLabel = "↵",
+                contentDescription = "Enter",
+                isEnterNewline = true
+            )
+        }
+
+        val imeOptions = editorInfo.imeOptions
+        val noEnterAction = (imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION) != 0
+
+        // If the host explicitly set IME_FLAG_NO_ENTER_ACTION, it must act as a regular Enter/newline
+        if (noEnterAction) {
+            return ImeActionDisplayInfo(
+                actionId = EditorInfo.IME_ACTION_UNSPECIFIED,
+                displayLabel = "Enter ↵",
+                compactLabel = "↵",
+                contentDescription = "Enter",
+                isEnterNewline = true
+            )
+        }
+
+        // Check for custom action ID specified by the host app
+        if (editorInfo.actionId != 0) {
+            val customLabel = editorInfo.actionLabel?.toString()?.trim()
+            val label = if (!customLabel.isNullOrBlank()) customLabel else "Action"
+            return ImeActionDisplayInfo(
+                actionId = editorInfo.actionId,
+                displayLabel = label,
+                compactLabel = "↵",
+                contentDescription = label,
+                isEnterNewline = false
+            )
+        }
+
+        // Evaluate standard action mask
+        val action = imeOptions and EditorInfo.IME_MASK_ACTION
+        return when (action) {
+            EditorInfo.IME_ACTION_SEND -> ImeActionDisplayInfo(
+                actionId = EditorInfo.IME_ACTION_SEND,
+                displayLabel = "Send ➤",
+                compactLabel = "➤",
+                contentDescription = "Send",
+                isEnterNewline = false
+            )
+            EditorInfo.IME_ACTION_SEARCH -> ImeActionDisplayInfo(
+                actionId = EditorInfo.IME_ACTION_SEARCH,
+                displayLabel = "Search 🔍",
+                compactLabel = "🔍",
+                contentDescription = "Search",
+                isEnterNewline = false
+            )
+            EditorInfo.IME_ACTION_GO -> ImeActionDisplayInfo(
+                actionId = EditorInfo.IME_ACTION_GO,
+                displayLabel = "Go ➔",
+                compactLabel = "➔",
+                contentDescription = "Go",
+                isEnterNewline = false
+            )
+            EditorInfo.IME_ACTION_NEXT -> ImeActionDisplayInfo(
+                actionId = EditorInfo.IME_ACTION_NEXT,
+                displayLabel = "Next ➔",
+                compactLabel = "➔",
+                contentDescription = "Next",
+                isEnterNewline = false
+            )
+            EditorInfo.IME_ACTION_DONE -> ImeActionDisplayInfo(
+                actionId = EditorInfo.IME_ACTION_DONE,
+                displayLabel = "Done ✓",
+                compactLabel = "✓",
+                contentDescription = "Done",
+                isEnterNewline = false
+            )
+            EditorInfo.IME_ACTION_PREVIOUS -> ImeActionDisplayInfo(
+                actionId = EditorInfo.IME_ACTION_PREVIOUS,
+                displayLabel = "Prev ➔",
+                compactLabel = "➔",
+                contentDescription = "Previous",
+                isEnterNewline = false
+            )
+            else -> {
+                val customLabel = editorInfo.actionLabel?.toString()?.trim()
+                if (!customLabel.isNullOrBlank()) {
+                    ImeActionDisplayInfo(
+                        actionId = 0,
+                        displayLabel = customLabel,
+                        compactLabel = "↵",
+                        contentDescription = customLabel,
+                        isEnterNewline = false
+                    )
+                } else {
+                    ImeActionDisplayInfo(
+                        actionId = action,
+                        displayLabel = "Enter ↵",
+                        compactLabel = "↵",
+                        contentDescription = "Enter",
+                        isEnterNewline = true
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Handles the Enter / Action key based on the target editor's [EditorInfo] semantics.
+     * Respects Send, Search, Go, Next, Done, custom action IDs, and falls back to newline.
      */
     fun handleEnter(inputConnection: InputConnection?, editorInfo: EditorInfo?) {
         if (inputConnection == null) return
         try {
-            val imeOptions = editorInfo?.imeOptions ?: 0
-            val action = imeOptions and EditorInfo.IME_MASK_ACTION
-            val noEnterAction = (imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION) != 0
-
-            if (action != EditorInfo.IME_ACTION_NONE && action != EditorInfo.IME_ACTION_UNSPECIFIED && !noEnterAction) {
-                inputConnection.performEditorAction(action)
-            } else {
+            val actionInfo = getImeActionInfo(editorInfo)
+            if (actionInfo.isEnterNewline) {
                 inputConnection.commitText("\n", 1)
+            } else {
+                val performed = inputConnection.performEditorAction(actionInfo.actionId)
+                if (!performed) {
+                    // Safe fallback if host refused editor action
+                    inputConnection.commitText("\n", 1)
+                }
             }
         } catch (_: Exception) {
         }

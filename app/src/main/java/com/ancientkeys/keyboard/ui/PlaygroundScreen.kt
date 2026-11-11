@@ -31,12 +31,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -129,6 +133,8 @@ fun PlaygroundScreen(
     var playgroundMode by rememberSaveable { mutableIntStateOf(0) }
     var selectedCategoryIndex by rememberSaveable(activeScriptId) { mutableIntStateOf(0) }
     var showInfoDialog by remember { mutableStateOf(false) }
+    var showTransliterateDialog by remember { mutableStateOf(false) }
+    var showTranslateDialog by remember { mutableStateOf(false) }
 
     val scriptFont = remember(currentScript.id, isEnglish) {
         if (isEnglish) null else HistoricalFontProvider.getFontFamily(context, currentScript.id)
@@ -377,15 +383,7 @@ fun PlaygroundScreen(
                     label = "Translate",
                     modifier = Modifier.weight(1f),
                     onClick = {
-                        if (textValue.text.isNotBlank()) {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Translating '${textValue.text}' (Historical Lexicon)")
-                            }
-                        } else {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Type text first to view translation gloss")
-                            }
-                        }
+                        showTranslateDialog = true
                     }
                 )
 
@@ -396,18 +394,10 @@ fun PlaygroundScreen(
                     modifier = Modifier.weight(1.1f),
                     onClick = {
                         if (textValue.text.isNotBlank()) {
-                            val romanizer = ScriptRomanizerProvider.getRomanizer(currentScript.id)
-                            val info = if (romanizer != null) {
-                                "${romanizer.schemeName} (${romanizer.academicConvention})"
-                            } else {
-                                "Direct glyph input (${currentScript.name})"
-                            }
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Transliteration convention: $info")
-                            }
+                            showTransliterateDialog = true
                         } else {
                             coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Type ancient glyphs to view transliteration details")
+                                snackbarHostState.showSnackbar("Type ancient glyphs first to view transliteration details")
                             }
                         }
                     }
@@ -504,8 +494,19 @@ fun PlaygroundScreen(
                     onBackspace = {
                         onTextValueChange(UnicodeTextEditor.deleteBackward(textValue))
                     },
-                    onClear = {
-                        onTextValueChange(UnicodeTextEditor.clear())
+                    onEnter = {
+                        onTextValueChange(UnicodeTextEditor.insertNewline(textValue))
+                    },
+                    onGlobeClick = {
+                        val scriptCycleList = listOf("english", "greek", "brahmi", "runic", "phoenician", "kharosthi", "egyptian")
+                        val currentIdx = scriptCycleList.indexOf(activeScriptId).coerceAtLeast(0)
+                        val nextIdx = (currentIdx + 1) % scriptCycleList.size
+                        activeScriptId = scriptCycleList[nextIdx]
+                        selectedCategoryIndex = 0
+                    },
+                    onScriptSelect = { selectedId ->
+                        activeScriptId = selectedId
+                        selectedCategoryIndex = 0
                     }
                 )
             }
@@ -518,6 +519,142 @@ fun PlaygroundScreen(
             script = currentScript,
             isEnglish = isEnglish,
             onDismiss = { showInfoDialog = false }
+        )
+    }
+
+    // Transliteration Dialog
+    if (showTransliterateDialog) {
+        val transliteratedText = remember(textValue.text, currentScript.id) {
+            transliterateAncientText(textValue.text, currentScript.id)
+        }
+        val romanizer = remember(currentScript.id) {
+            ScriptRomanizerProvider.getRomanizer(currentScript.id)
+        }
+        AlertDialog(
+            onDismissRequest = { showTransliterateDialog = false },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (transliteratedText.isNotBlank()) {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("Transliteration", transliteratedText))
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar("Transliteration copied 📋")
+                            }
+                        }
+                        showTransliterateDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                        contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
+                    )
+                ) {
+                    Text("Copy & Close", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showTransliterateDialog = false }) {
+                    Text("Close")
+                }
+            },
+            title = {
+                Text(
+                    text = "Academic Transliteration",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    color = MaterialTheme.ancientKeysColors.keyText
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val scheme = romanizer?.schemeName ?: "Standard Epigraphic"
+                    val convention = romanizer?.academicConvention ?: "International Academic"
+                    Text(
+                        text = "Script: ${if (isEnglish) "English" else currentScript.name}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Standard: $scheme ($convention)",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.ancientKeysColors.chipText
+                    )
+                    HorizontalDivider()
+                    Text(
+                        text = "Original Text:",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.ancientKeysColors.chipText
+                    )
+                    Text(
+                        text = textValue.text.ifBlank { "*(Canvas is empty)*" },
+                        fontFamily = scriptFont,
+                        fontSize = 18.sp,
+                        color = MaterialTheme.ancientKeysColors.keyText
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Latin Transliteration:",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.ancientKeysColors.chipText
+                    )
+                    Text(
+                        text = transliteratedText.ifBlank { "*(None)*" },
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            },
+            containerColor = MaterialTheme.ancientKeysColors.cardBackground,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    // Translation Educational Dialog
+    if (showTranslateDialog) {
+        AlertDialog(
+            onDismissRequest = { showTranslateDialog = false },
+            confirmButton = {
+                Button(
+                    onClick = { showTranslateDialog = false },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                        contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
+                    )
+                ) {
+                    Text("Understood", fontWeight = FontWeight.Bold)
+                }
+            },
+            title = {
+                Text(
+                    text = "Historical Epigraphy & Translation",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    color = MaterialTheme.ancientKeysColors.keyText
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "AncientKeys provides authentic Unicode character input and deterministic transliteration. Unlike modern languages, ancient epigraphic texts require morphological and contextual translation by human scholars.",
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp,
+                        color = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.9f)
+                    )
+                    HorizontalDivider()
+                    Text(
+                        text = "• Transliteration converts characters (e.g. 𑀅𑀰𑁄𑀓 ➔ aśoka).\n• Translation converts meaning (e.g. 𓋹𓍑𓋴 ➔ 'Life, Prosperity, Health').\n• To record human scholarly translations, use the Save (🔖) action to store records in the Inscription Research Workspace.",
+                        fontSize = 11.sp,
+                        lineHeight = 16.sp,
+                        color = MaterialTheme.ancientKeysColors.chipText
+                    )
+                }
+            },
+            containerColor = MaterialTheme.ancientKeysColors.cardBackground,
+            shape = RoundedCornerShape(16.dp)
         )
     }
 }
@@ -651,11 +788,16 @@ private fun PlaygroundKeyboardView(
     onKeyInsert: (String) -> Unit,
     onSpace: () -> Unit,
     onBackspace: () -> Unit,
-    onClear: () -> Unit
+    onEnter: () -> Unit,
+    onGlobeClick: () -> Unit,
+    onScriptSelect: (String) -> Unit
 ) {
+    var isNumericMode by rememberSaveable { mutableStateOf(false) }
+    var showScriptDropdown by remember { mutableStateOf(false) }
+
     Column(modifier = Modifier.fillMaxSize()) {
-        // Category Pills (if script has categories)
-        if (!isEnglish && currentScript.categories.size > 1) {
+        // Category Pills (if script has categories and not in numeric mode)
+        if (!isNumericMode && !isEnglish && currentScript.categories.size > 1) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -689,7 +831,34 @@ private fun PlaygroundKeyboardView(
                 .fillMaxWidth()
                 .weight(1f)
         ) {
-            if (isEnglish) {
+            if (isNumericMode) {
+                // Functional Numeric & Symbols Keyboard
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    listOf(
+                        EnglishKeyboardData.NUMBERS_ROW,
+                        EnglishKeyboardData.SYMBOLS_ROW_1,
+                        EnglishKeyboardData.SYMBOLS_ROW_2
+                    ).forEach { rowKeys ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            rowKeys.forEach { k ->
+                                PlaygroundKeyCard(
+                                    label = k,
+                                    subLabel = "",
+                                    font = null,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { onKeyInsert(k) }
+                                )
+                            }
+                        }
+                    }
+                }
+            } else if (isEnglish) {
                 // English keyboard grid
                 Column(
                     modifier = Modifier.fillMaxSize(),
@@ -753,15 +922,20 @@ private fun PlaygroundKeyboardView(
             // Numbers toggle
             Surface(
                 shape = AncientKeysDesignTokens.Shapes.keyShape,
-                color = MaterialTheme.ancientKeysColors.keyActionBackground,
+                color = if (isNumericMode) MaterialTheme.ancientKeysColors.keyPrimaryActionBackground else MaterialTheme.ancientKeysColors.keyActionBackground,
                 border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder.copy(alpha = 0.6f)),
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(42.dp)
-                    .clickable { /* Toggle numbers */ }
+                    .clickable { isNumericMode = !isNumericMode }
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text("123", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.ancientKeysColors.keyText)
+                    Text(
+                        text = if (isNumericMode) (if (isEnglish) "ABC" else "🏛️") else "123",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isNumericMode) MaterialTheme.ancientKeysColors.keyPrimaryActionText else MaterialTheme.ancientKeysColors.keyText
+                    )
                 }
             }
 
@@ -773,29 +947,55 @@ private fun PlaygroundKeyboardView(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(42.dp)
-                    .clickable { onClear() }
+                    .clickable { onGlobeClick() }
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text("🌐", fontSize = 14.sp)
                 }
             }
 
-            // Script Name Badge
-            Surface(
-                shape = AncientKeysDesignTokens.Shapes.keyShape,
-                color = MaterialTheme.ancientKeysColors.chipBackground,
-                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder.copy(alpha = 0.6f)),
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .widthIn(min = 68.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 6.dp)) {
-                    Text(
-                        text = if (isEnglish) "English ▾" else "${currentScript.name.split(" ").first()} ▾",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.ancientKeysColors.keyText
+            // Script Name Badge with interactive DropdownMenu
+            Box {
+                Surface(
+                    shape = AncientKeysDesignTokens.Shapes.keyShape,
+                    color = MaterialTheme.ancientKeysColors.chipBackground,
+                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder.copy(alpha = 0.6f)),
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .widthIn(min = 68.dp)
+                        .clickable { showScriptDropdown = true }
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 6.dp)) {
+                        Text(
+                            text = if (isEnglish) "English ▾" else "${currentScript.name.split(" ").first()} ▾",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.ancientKeysColors.keyText
+                        )
+                    }
+                }
+
+                DropdownMenu(
+                    expanded = showScriptDropdown,
+                    onDismissRequest = { showScriptDropdown = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("English (Latin QWERTY)", fontSize = 13.sp) },
+                        onClick = {
+                            onScriptSelect("english")
+                            showScriptDropdown = false
+                        }
                     )
+                    HorizontalDivider()
+                    ScriptRegistry.allScripts.forEach { script ->
+                        DropdownMenuItem(
+                            text = { Text(script.name, fontSize = 13.sp) },
+                            onClick = {
+                                onScriptSelect(script.id)
+                                showScriptDropdown = false
+                            }
+                        )
+                    }
                 }
             }
 
@@ -837,7 +1037,7 @@ private fun PlaygroundKeyboardView(
                 modifier = Modifier
                     .fillMaxHeight()
                     .widthIn(min = 52.dp)
-                    .clickable { onSpace() }
+                    .clickable { onEnter() }
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 8.dp)) {
                     Text(
@@ -850,6 +1050,31 @@ private fun PlaygroundKeyboardView(
             }
         }
     }
+}
+
+/**
+ * Deterministically maps ancient characters to their scholarly Latin transliteration
+ * using the script's authentic Unicode key metadata registry.
+ */
+fun transliterateAncientText(text: String, scriptId: String): String {
+    if (text.isEmpty()) return ""
+    if (scriptId.equals("english", ignoreCase = true)) return text
+    val script = ScriptRegistry.getScriptById(scriptId) ?: return text
+    val keyMap = script.keys.associate { it.character to it.transliteration.ifBlank { it.phoneticHint } }
+
+    // Normalize text (NFD decomposes composite accents e.g. 'ό' -> 'ο' + combining acute)
+    val normalized = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD)
+
+    val sb = StringBuilder()
+    var i = 0
+    while (i < normalized.length) {
+        val cp = normalized.codePointAt(i)
+        val charStr = String(Character.toChars(cp))
+        val translit = keyMap[charStr] ?: if (Character.getType(cp) == Character.NON_SPACING_MARK.toInt()) "" else charStr
+        sb.append(translit)
+        i += Character.charCount(cp)
+    }
+    return sb.toString()
 }
 
 @Composable
