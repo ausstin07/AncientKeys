@@ -20,6 +20,7 @@ class UserPreferencesRepository(private val context: Context? = null) {
     // In-memory fallback for testing or non-context execution
     private val memoryRecents = mutableListOf<String>()
     private val memoryFavorites = mutableSetOf<String>()
+    private val memoryFavoriteScripts = mutableSetOf<String>()
     private var memoryKeyboardHeightDp = DEFAULT_KEYBOARD_HEIGHT_DP
     private var memoryHapticsEnabled = true
     private var memoryThemePreference = DEFAULT_THEME
@@ -47,6 +48,7 @@ class UserPreferencesRepository(private val context: Context? = null) {
 
         private const val KEY_RECENTS = "recent_scripts_csv"
         private const val KEY_FAVORITES = "favorite_characters_set"
+        private const val KEY_FAVORITE_SCRIPTS = "favorite_scripts_set"
         private const val KEY_KEYBOARD_HEIGHT = "keyboard_height_dp"
         private const val KEY_HAPTICS = "keyboard_haptics_enabled"
         private const val KEY_THEME = "keyboard_theme_preference"
@@ -120,6 +122,42 @@ class UserPreferencesRepository(private val context: Context? = null) {
         val prefix = "${scriptId.lowercase().trim()}:"
         val favs = prefs?.getStringSet(KEY_FAVORITES, null) ?: memoryFavorites
         return favs.filter { it.startsWith(prefix) }.map { it.removePrefix(prefix) }.toSet()
+    }
+
+    fun getAllFavoriteScriptIds(): Set<String> {
+        val favs = prefs?.getStringSet(KEY_FAVORITES, null) ?: memoryFavorites
+        return favs.mapNotNull { it.split(":").firstOrNull()?.lowercase() }.toSet()
+    }
+
+    fun getTotalFavoritesCount(): Int {
+        val charFavs = prefs?.getStringSet(KEY_FAVORITES, null) ?: memoryFavorites
+        val scriptFavs = prefs?.getStringSet(KEY_FAVORITE_SCRIPTS, null) ?: memoryFavoriteScripts
+        return charFavs.size + scriptFavs.size
+    }
+
+    fun isScriptFavorite(scriptId: String): Boolean {
+        val favScripts = prefs?.getStringSet(KEY_FAVORITE_SCRIPTS, null) ?: memoryFavoriteScripts
+        return favScripts.contains(scriptId.lowercase().trim())
+    }
+
+    fun toggleScriptFavorite(scriptId: String): Boolean {
+        val clean = scriptId.lowercase().trim()
+        val current = (prefs?.getStringSet(KEY_FAVORITE_SCRIPTS, null)?.toMutableSet() ?: memoryFavoriteScripts.toMutableSet())
+        val newState = if (current.contains(clean)) {
+            current.remove(clean)
+            false
+        } else {
+            current.add(clean)
+            true
+        }
+        prefs?.edit()?.putStringSet(KEY_FAVORITE_SCRIPTS, current)?.apply()
+        memoryFavoriteScripts.clear()
+        memoryFavoriteScripts.addAll(current)
+        return newState
+    }
+
+    fun getFavoriteScriptIds(): Set<String> {
+        return prefs?.getStringSet(KEY_FAVORITE_SCRIPTS, null) ?: memoryFavoriteScripts
     }
 
     // --- Keyboard Height Setting ---
