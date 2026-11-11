@@ -63,6 +63,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
@@ -266,6 +267,17 @@ private fun MultiModeKeyboardContent(
     var longPressPopupKey by remember { mutableStateOf<String?>(null) }
     val keySizePref = remember { userPrefs.getKeySizePreference() }
     val showKeyLabelsPref = remember { userPrefs.isShowKeyLabelsEnabled() }
+    var pendingScriptSwitch by remember { mutableStateOf<HistoricalScript?>(null) }
+
+    val applyScriptSwitch: (HistoricalScript) -> Unit = { targetScript ->
+        onScriptChange(targetScript.id)
+        onKeyboardModeChange(KeyboardMode.HISTORICAL)
+        selectedCategoryIndex = 0
+        showFavoritesOnly = false
+        romanizedBuffer = ""
+        phoneticBuffer = ""
+        pendingScriptSwitch = null
+    }
 
     val currentScript = remember(currentScriptId) {
         val script = ScriptRegistry.getScriptById(currentScriptId) ?: ScriptRegistry.allScripts.first()
@@ -362,11 +374,22 @@ private fun MultiModeKeyboardContent(
                                 }
                             },
                             onClick = {
-                                onScriptChange(script.id)
-                                onKeyboardModeChange(KeyboardMode.HISTORICAL)
-                                selectedCategoryIndex = 0
-                                showFavoritesOnly = false
                                 isScriptMenuExpanded = false
+                                when (ScriptSwitchHandler.evaluateScriptSwitch(
+                                    currentScriptId = currentScript.id,
+                                    targetScriptId = script.id,
+                                    isConfirmationEnabled = userPrefs.isConfirmScriptSwitchEnabled()
+                                )) {
+                                    ScriptSwitchHandler.Action.IGNORE -> {
+                                        // Already active script: dismiss menu without prompt
+                                    }
+                                    ScriptSwitchHandler.Action.PROMPT_CONFIRMATION -> {
+                                        pendingScriptSwitch = script
+                                    }
+                                    ScriptSwitchHandler.Action.SWITCH_IMMEDIATELY -> {
+                                        applyScriptSwitch(script)
+                                    }
+                                }
                             }
                         )
                     }
@@ -1070,6 +1093,24 @@ private fun MultiModeKeyboardContent(
                     }
                 }
             }
+
+            // Compact Keyboard-Contained Script Switch Confirmation Overlay
+            if (pendingScriptSwitch != null) {
+                val target = pendingScriptSwitch!!
+                ScriptSwitchConfirmationOverlay(
+                    currentScriptName = currentScript.name,
+                    targetScript = target,
+                    isLandscape = isLandscape,
+                    onConfirm = {
+                        triggerHaptic()
+                        applyScriptSwitch(target)
+                    },
+                    onCancel = {
+                        triggerHaptic()
+                        pendingScriptSwitch = null
+                    }
+                )
+            }
         }
 
         val bottomRowHeight = ImeDimensionsHelper.computeBottomRowHeight(isLandscape).dp
@@ -1680,6 +1721,158 @@ private fun ImeKeyItem(
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center
                     )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Compact, keyboard-contained confirmation interface for script switching.
+ *
+ * Implements:
+ * - Contained inside the IME view hierarchy without opening separate windows or dialogs.
+ * - Protects window focus and InputConnection from being dropped.
+ * - Leaves bottom control row (Space, Backspace, Enter, Globe) visible.
+ * - Supports landscape and portrait compact layouts.
+ * - Full TalkBack semantic descriptions.
+ */
+@Composable
+private fun ScriptSwitchConfirmationOverlay(
+    currentScriptName: String,
+    targetScript: HistoricalScript,
+    isLandscape: Boolean,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.35f))
+            .clickable(onClick = onCancel)
+            .semantics {
+                contentDescription = "Confirm switching writing system from $currentScriptName to ${targetScript.name}. Select Switch to confirm or Cancel to keep current script."
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .widthIn(max = if (isLandscape) 360.dp else 290.dp)
+                .padding(horizontal = 8.dp)
+                .clickable(enabled = false) { /* prevent click through */ },
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.ancientKeysColors.cardBackground
+            ),
+            border = BorderStroke(1.5.dp, MaterialTheme.ancientKeysColors.cardBorder),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            if (isLandscape) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Switch to ${targetScript.name}?",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.ancientKeysColors.keyText,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "From $currentScriptName",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.ancientKeysColors.chipText,
+                            maxLines = 1
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedButton(
+                            onClick = onCancel,
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                            modifier = Modifier.height(28.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder)
+                        ) {
+                            Text("Cancel", fontSize = 11.sp, color = MaterialTheme.ancientKeysColors.keyText)
+                        }
+
+                        Button(
+                            onClick = onConfirm,
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                            modifier = Modifier.height(28.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                                contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
+                            )
+                        ) {
+                            Text("Switch", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "🏛️ Switch Writing System?",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.ancientKeysColors.keyText
+                    )
+                    Text(
+                        text = "Switch from $currentScriptName to ${targetScript.name}?",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.ancientKeysColors.chipText,
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(2.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onCancel,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(32.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder)
+                        ) {
+                            Text("Cancel", fontSize = 11.sp, color = MaterialTheme.ancientKeysColors.keyText)
+                        }
+
+                        Button(
+                            onClick = onConfirm,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(32.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                                contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
+                            )
+                        ) {
+                            Text("Switch", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }
