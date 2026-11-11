@@ -22,7 +22,7 @@ class UserPreferencesRepository(private val context: Context? = null) {
     private val memoryFavorites = mutableSetOf<String>()
     private var memoryKeyboardHeightDp = DEFAULT_KEYBOARD_HEIGHT_DP
     private var memoryHapticsEnabled = true
-    private var memoryThemePreference = THEME_SYSTEM
+    private var memoryThemePreference = DEFAULT_THEME
     private var memoryLastKeyboardMode = MODE_HISTORICAL
     private var memoryScholarMode = false
     private var memoryOnboardingCompleted = false
@@ -33,8 +33,12 @@ class UserPreferencesRepository(private val context: Context? = null) {
         const val MAX_KEYBOARD_HEIGHT_DP = 360
 
         const val THEME_SYSTEM = "system"
+        const val THEME_SAGE = "sage"
         const val THEME_LIGHT = "light"
         const val THEME_DARK = "dark"
+        const val THEME_SEPIA = "sepia"
+
+        const val DEFAULT_THEME = THEME_SYSTEM
 
         const val MODE_HISTORICAL = "historical"
         const val MODE_ENGLISH = "english"
@@ -145,17 +149,49 @@ class UserPreferencesRepository(private val context: Context? = null) {
     // --- Theme Preference ---
 
     fun getThemePreference(): String {
-        return prefs?.getString(KEY_THEME, memoryThemePreference) ?: memoryThemePreference
+        val stored = prefs?.getString(KEY_THEME, null)
+        return when (stored?.lowercase()?.trim()) {
+            THEME_SAGE -> THEME_SAGE
+            THEME_LIGHT -> THEME_LIGHT
+            THEME_DARK -> THEME_DARK
+            THEME_SEPIA -> THEME_SEPIA
+            THEME_SYSTEM -> THEME_SYSTEM
+            null -> memoryThemePreference
+            else -> DEFAULT_THEME
+        }
     }
 
     fun setThemePreference(theme: String) {
-        val safeTheme = when (theme.lowercase()) {
+        val safeTheme = when (theme.lowercase().trim()) {
+            THEME_SAGE -> THEME_SAGE
             THEME_LIGHT -> THEME_LIGHT
             THEME_DARK -> THEME_DARK
-            else -> THEME_SYSTEM
+            THEME_SEPIA -> THEME_SEPIA
+            THEME_SYSTEM -> THEME_SYSTEM
+            else -> DEFAULT_THEME
         }
         prefs?.edit()?.putString(KEY_THEME, safeTheme)?.apply()
         memoryThemePreference = safeTheme
+    }
+
+    fun reloadTheme(): String {
+        return getThemePreference()
+    }
+
+    fun registerThemeChangeListener(listener: (String) -> Unit): () -> Unit {
+        val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == KEY_THEME) {
+                listener(getThemePreference())
+            }
+        }
+        prefs?.registerOnSharedPreferenceChangeListener(prefListener)
+        return {
+            prefs?.unregisterOnSharedPreferenceChangeListener(prefListener)
+        }
+    }
+
+    fun getAvailableThemes(): List<String> {
+        return listOf(THEME_SAGE, THEME_LIGHT, THEME_DARK, THEME_SEPIA, THEME_SYSTEM)
     }
 
     // --- Last Keyboard Mode ---

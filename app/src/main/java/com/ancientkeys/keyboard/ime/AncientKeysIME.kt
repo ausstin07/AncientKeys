@@ -120,7 +120,7 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
                     else -> androidx.compose.foundation.isSystemInDarkTheme()
                 }
 
-                AncientKeysTheme(darkTheme = isDark) {
+                AncientKeysTheme(themePreference = themePref, darkTheme = isDark) {
                     ImeKeyboardLayout(
                         editorInfo = currentEditorInfoState.value,
                         onKeyClick = { key ->
