@@ -101,16 +101,28 @@ fun ImeKeyboardLayout(
     val userPrefs = remember { UserPreferencesRepository.getInstance(context) }
     val userPrefsHeight = remember { userPrefs.getKeyboardHeightDp() }
 
-    // Determine initial preferred script
+    // Determine initial preferred script based on default setting or recents
     val preferredScriptId = remember {
-        val recents = userPrefs.getRecentScriptIds()
-        recents.firstOrNull { ScriptRegistry.getScriptById(it) != null } ?: initialScriptId
+        val configuredDefault = userPrefs.getDefaultScriptId()
+        if (configuredDefault.isNotBlank() && (configuredDefault == "english" || ScriptRegistry.getScriptById(configuredDefault) != null)) {
+            configuredDefault
+        } else {
+            val recents = userPrefs.getRecentScriptIds()
+            recents.firstOrNull { ScriptRegistry.getScriptById(it) != null } ?: initialScriptId
+        }
     }
 
-    var currentScriptId by rememberSaveable { mutableStateOf(preferredScriptId) }
+    var currentScriptId by rememberSaveable {
+        mutableStateOf(if (preferredScriptId == "english") "greek" else preferredScriptId)
+    }
     var keyboardMode by rememberSaveable {
-        val initialMode = if (EasyPhoneticProvider.isPhoneticSupported(preferredScriptId))
-            KeyboardMode.EASY_PHONETIC else KeyboardMode.HISTORICAL
+        val initialMode = if (preferredScriptId == "english") {
+            KeyboardMode.ENGLISH_QWERTY
+        } else if (EasyPhoneticProvider.isPhoneticSupported(preferredScriptId)) {
+            KeyboardMode.EASY_PHONETIC
+        } else {
+            KeyboardMode.HISTORICAL
+        }
         mutableStateOf(initialMode)
     }
 
@@ -252,6 +264,8 @@ private fun MultiModeKeyboardContent(
     var phoneticBuffer by rememberSaveable { mutableStateOf("") }
     var isScholarMode by rememberSaveable { mutableStateOf(userPrefs.isScholarMode()) }
     var longPressPopupKey by remember { mutableStateOf<String?>(null) }
+    val keySizePref = remember { userPrefs.getKeySizePreference() }
+    val showKeyLabelsPref = remember { userPrefs.isShowKeyLabelsEnabled() }
 
     val currentScript = remember(currentScriptId) {
         val script = ScriptRegistry.getScriptById(currentScriptId) ?: ScriptRegistry.allScripts.first()
@@ -585,6 +599,8 @@ private fun MultiModeKeyboardContent(
                                     scriptId = currentScript.id,
                                     isScholarMode = isScholarMode,
                                     isLandscape = isLandscape,
+                                    keySize = keySizePref,
+                                    showKeyLabels = showKeyLabelsPref,
                                     onClick = {
                                         triggerHaptic()
                                         onKeyClick(scriptKey)
@@ -1599,6 +1615,8 @@ private fun ImeKeyItem(
     scriptId: String,
     isScholarMode: Boolean = false,
     isLandscape: Boolean = false,
+    keySize: String = UserPreferencesRepository.DEFAULT_KEY_SIZE,
+    showKeyLabels: Boolean = true,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -1606,7 +1624,12 @@ private fun ImeKeyItem(
     val accessibleDesc = "${key.label}, ${UnicodeMetadataHelper.getOfficialUnicodeName(key)}"
     val context = LocalContext.current
     val fontFamily = remember(scriptId) { HistoricalFontProvider.getFontFamily(context, scriptId) }
-    val itemHeight = if (isLandscape) 42.dp else 52.dp
+    val sizeDelta = when (keySize) {
+        UserPreferencesRepository.KEY_SIZE_SMALL -> (-4).dp
+        UserPreferencesRepository.KEY_SIZE_LARGE -> 4.dp
+        else -> 0.dp
+    }
+    val itemHeight = (if (isLandscape) 42.dp else 52.dp) + sizeDelta
 
     Card(
         modifier = modifier
@@ -1637,25 +1660,27 @@ private fun ImeKeyItem(
                 color = MaterialTheme.ancientKeysColors.keyText,
                 textAlign = TextAlign.Center
             )
-            if (isScholarMode) {
-                Text(
-                    text = key.unicodeCodePoint,
-                    fontSize = if (isLandscape) 6.sp else 7.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.ancientKeysColors.glyphAccent,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
-            } else if (key.phoneticHint.isNotEmpty()) {
-                Text(
-                    text = key.phoneticHint,
-                    fontSize = if (isLandscape) 7.sp else 8.sp,
-                    color = MaterialTheme.ancientKeysColors.glyphAccent,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
+            if (showKeyLabels) {
+                if (isScholarMode) {
+                    Text(
+                        text = key.unicodeCodePoint,
+                        fontSize = if (isLandscape) 6.sp else 7.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.ancientKeysColors.glyphAccent,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
+                } else if (key.phoneticHint.isNotEmpty()) {
+                    Text(
+                        text = key.phoneticHint,
+                        fontSize = if (isLandscape) 7.sp else 8.sp,
+                        color = MaterialTheme.ancientKeysColors.glyphAccent,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         }
     }

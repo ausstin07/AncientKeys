@@ -257,6 +257,7 @@ class UiWorkflowAutomationTest {
         assertTrue(modes.contains(com.ancientkeys.keyboard.ScreenMode.LEARN))
         assertTrue(modes.contains(com.ancientkeys.keyboard.ScreenMode.RESEARCH_WORKSPACE))
         assertTrue(modes.contains(com.ancientkeys.keyboard.ScreenMode.ABOUT))
-        assertEquals(7, modes.size)
+        assertTrue(modes.contains(com.ancientkeys.keyboard.ScreenMode.SETTINGS))
+        assertEquals(8, modes.size)
     }
 }

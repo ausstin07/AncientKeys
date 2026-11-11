@@ -27,6 +27,10 @@ class UserPreferencesRepository(private val context: Context? = null) {
     private var memoryLastKeyboardMode = MODE_HISTORICAL
     private var memoryScholarMode = false
     private var memoryOnboardingCompleted = false
+    private var memoryKeySizePreference = DEFAULT_KEY_SIZE
+    private var memoryShowKeyLabels = true
+    private var memoryDefaultScriptId = DEFAULT_SCRIPT_ID
+    private var memoryConfirmScriptSwitch = false
 
     companion object {
         const val DEFAULT_KEYBOARD_HEIGHT_DP = 290
@@ -46,6 +50,13 @@ class UserPreferencesRepository(private val context: Context? = null) {
         const val MODE_ROMANIZED = "romanized"
         const val MODE_EASY_PHONETIC = "easy_phonetic"
 
+        const val KEY_SIZE_SMALL = "small"
+        const val KEY_SIZE_MEDIUM = "medium"
+        const val KEY_SIZE_LARGE = "large"
+        const val DEFAULT_KEY_SIZE = KEY_SIZE_MEDIUM
+
+        const val DEFAULT_SCRIPT_ID = "greek"
+
         private const val KEY_RECENTS = "recent_scripts_csv"
         private const val KEY_FAVORITES = "favorite_characters_set"
         private const val KEY_FAVORITE_SCRIPTS = "favorite_scripts_set"
@@ -55,6 +66,10 @@ class UserPreferencesRepository(private val context: Context? = null) {
         private const val KEY_LAST_MODE = "keyboard_last_mode"
         private const val KEY_SCHOLAR_MODE = "scholar_mode_enabled"
         private const val KEY_ONBOARDING_DONE = "onboarding_completed"
+        private const val KEY_KEY_SIZE = "keyboard_key_size"
+        private const val KEY_SHOW_KEY_LABELS = "keyboard_show_key_labels"
+        private const val KEY_DEFAULT_SCRIPT = "keyboard_default_script"
+        private const val KEY_CONFIRM_SCRIPT_SWITCH = "keyboard_confirm_script_switch"
 
         @Volatile
         private var instance: UserPreferencesRepository? = null
@@ -270,5 +285,55 @@ class UserPreferencesRepository(private val context: Context? = null) {
     fun setOnboardingCompleted(completed: Boolean) {
         prefs?.edit()?.putBoolean(KEY_ONBOARDING_DONE, completed)?.apply()
         memoryOnboardingCompleted = completed
+    }
+
+    // --- Key Size Preference ---
+
+    fun getKeySizePreference(): String {
+        return prefs?.getString(KEY_KEY_SIZE, memoryKeySizePreference) ?: memoryKeySizePreference
+    }
+
+    fun setKeySizePreference(size: String) {
+        val safe = when (size.lowercase().trim()) {
+            KEY_SIZE_SMALL -> KEY_SIZE_SMALL
+            KEY_SIZE_LARGE -> KEY_SIZE_LARGE
+            else -> KEY_SIZE_MEDIUM
+        }
+        prefs?.edit()?.putString(KEY_KEY_SIZE, safe)?.apply()
+        memoryKeySizePreference = safe
+    }
+
+    // --- Show Key Labels / Transliterations ---
+
+    fun isShowKeyLabelsEnabled(): Boolean {
+        return prefs?.getBoolean(KEY_SHOW_KEY_LABELS, memoryShowKeyLabels) ?: memoryShowKeyLabels
+    }
+
+    fun setShowKeyLabelsEnabled(enabled: Boolean) {
+        prefs?.edit()?.putBoolean(KEY_SHOW_KEY_LABELS, enabled)?.apply()
+        memoryShowKeyLabels = enabled
+    }
+
+    // --- Default Script Preference ---
+
+    fun getDefaultScriptId(): String {
+        return prefs?.getString(KEY_DEFAULT_SCRIPT, memoryDefaultScriptId) ?: memoryDefaultScriptId
+    }
+
+    fun setDefaultScriptId(scriptId: String) {
+        val clean = scriptId.lowercase().trim()
+        prefs?.edit()?.putString(KEY_DEFAULT_SCRIPT, clean)?.apply()
+        memoryDefaultScriptId = clean
+    }
+
+    // --- Confirm Script Switch Setting ---
+
+    fun isConfirmScriptSwitchEnabled(): Boolean {
+        return prefs?.getBoolean(KEY_CONFIRM_SCRIPT_SWITCH, memoryConfirmScriptSwitch) ?: memoryConfirmScriptSwitch
+    }
+
+    fun setConfirmScriptSwitchEnabled(enabled: Boolean) {
+        prefs?.edit()?.putBoolean(KEY_CONFIRM_SCRIPT_SWITCH, enabled)?.apply()
+        memoryConfirmScriptSwitch = enabled
     }
 }

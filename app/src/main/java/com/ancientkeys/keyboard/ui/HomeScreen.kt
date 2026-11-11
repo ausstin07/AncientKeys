@@ -99,7 +99,8 @@ fun HomeScreen(
     onOpenTestLab: () -> Unit = {},
     onOpenResearchWorkspace: () -> Unit = {},
     onOpenLearn: () -> Unit = {},
-    onOpenAbout: () -> Unit = {}
+    onOpenAbout: () -> Unit = {},
+    onOpenSettings: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val userPrefs = remember { UserPreferencesRepository.getInstance(context) }
@@ -233,7 +234,7 @@ fun HomeScreen(
                         }
                         Spacer(modifier = Modifier.width(4.dp))
                         AncientKeysIconButton(
-                            onClick = { showSettingsDialog = true },
+                            onClick = onOpenSettings,
                             contentDescription = "Theme & Keyboard Settings",
                             size = 40.dp
                         ) {
