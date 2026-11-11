@@ -73,6 +73,8 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AncientKeysApp() {
+    val context = LocalContext.current
+    val userPrefs = remember { UserPreferencesRepository.getInstance(context) }
     var screenMode by rememberSaveable { mutableStateOf(ScreenMode.HOME) }
     var activeScriptId by rememberSaveable { mutableStateOf<String?>(null) }
     val saveableStateHolder = rememberSaveableStateHolder()
@@ -80,31 +82,39 @@ fun AncientKeysApp() {
     val activeScript = activeScriptId?.let { ScriptRegistry.getScriptById(it) }
 
     when {
-        screenMode == ScreenMode.PLAYGROUND && activeScript != null -> {
+        screenMode == ScreenMode.PLAYGROUND -> {
             BackHandler {
                 screenMode = ScreenMode.HOME
             }
 
-            saveableStateHolder.SaveableStateProvider(key = activeScript.id) {
+            val targetScript = activeScript
+                ?: ScriptRegistry.getScriptById(userPrefs.getDefaultScriptId())
+                ?: ScriptRegistry.allScripts.first()
+
+            saveableStateHolder.SaveableStateProvider(key = targetScript.id) {
                 var textValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
                     mutableStateOf(TextFieldValue(""))
                 }
 
                 PlaygroundScreen(
-                    script = activeScript,
+                    script = targetScript,
                     textValue = textValue,
                     onTextValueChange = { textValue = it },
                     onBackClick = { screenMode = ScreenMode.HOME }
                 )
             }
         }
-        screenMode == ScreenMode.EXPLORER && activeScript != null -> {
+        screenMode == ScreenMode.EXPLORER -> {
             BackHandler {
                 screenMode = ScreenMode.HOME
             }
 
+            val targetScript = activeScript
+                ?: ScriptRegistry.getScriptById(userPrefs.getDefaultScriptId())
+                ?: ScriptRegistry.allScripts.first()
+
             CharacterExplorerScreen(
-                script = activeScript,
+                script = targetScript,
                 onBackClick = { screenMode = ScreenMode.HOME }
             )
         }

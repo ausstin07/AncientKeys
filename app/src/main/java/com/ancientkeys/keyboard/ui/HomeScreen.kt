@@ -106,7 +106,6 @@ fun HomeScreen(
     val userPrefs = remember { UserPreferencesRepository.getInstance(context) }
 
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    var showSettingsDialog by rememberSaveable { mutableStateOf(false) }
     var showFavoritesDialog by rememberSaveable { mutableStateOf(false) }
     var showOnboardingDialog by rememberSaveable { mutableStateOf(!userPrefs.isOnboardingCompleted()) }
 
@@ -166,6 +165,22 @@ fun HomeScreen(
                 )
                 NavigationBarItem(
                     selected = false,
+                    onClick = {
+                        val target = recentScripts.firstOrNull() ?: ScriptRegistry.allScripts.first()
+                        onOpenExplorer(target)
+                    },
+                    icon = { Text("🧭", fontSize = 18.sp) },
+                    label = { Text("Explore", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                    colors = NavigationBarItemDefaults.colors(
+                        indicatorColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                        selectedIconColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
+                        selectedTextColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                        unselectedIconColor = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.7f),
+                        unselectedTextColor = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.7f)
+                    )
+                )
+                NavigationBarItem(
+                    selected = false,
                     onClick = onOpenLearn,
                     icon = { Text("📖", fontSize = 18.sp) },
                     label = { Text("Learn", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
@@ -179,22 +194,9 @@ fun HomeScreen(
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = onOpenTestLab,
-                    icon = { Text("⌨️", fontSize = 18.sp) },
-                    label = { Text("Keyboard", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
-                    colors = NavigationBarItemDefaults.colors(
-                        indicatorColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                        selectedIconColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
-                        selectedTextColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                        unselectedIconColor = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.7f),
-                        unselectedTextColor = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.7f)
-                    )
-                )
-                NavigationBarItem(
-                    selected = false,
-                    onClick = onOpenResearchWorkspace,
-                    icon = { Text("🔖", fontSize = 18.sp) },
-                    label = { Text("Saved", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
+                    onClick = onOpenSettings,
+                    icon = { Text("⚙️", fontSize = 18.sp) },
+                    label = { Text("Settings", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
                     colors = NavigationBarItemDefaults.colors(
                         indicatorColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
                         selectedIconColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
@@ -332,16 +334,13 @@ fun HomeScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         HomeQuickActionCard(
-                            icon = "⌨️",
-                            label = "Keyboard",
+                            icon = "✍️",
+                            label = "Playground",
                             modifier = Modifier.weight(1f),
-                            onClick = onOpenTestLab
-                        )
-                        HomeQuickActionCard(
-                            icon = "📖",
-                            label = "Learn",
-                            modifier = Modifier.weight(1f),
-                            onClick = onOpenLearn
+                            onClick = {
+                                val target = recentScripts.firstOrNull() ?: ScriptRegistry.allScripts.first()
+                                onOpenPlayground(target)
+                            }
                         )
                         HomeQuickActionCard(
                             icon = "🧭",
@@ -353,10 +352,16 @@ fun HomeScreen(
                             }
                         )
                         HomeQuickActionCard(
-                            icon = "⭐",
-                            label = "Favorites",
+                            icon = "📖",
+                            label = "Learn",
                             modifier = Modifier.weight(1f),
-                            onClick = { showFavoritesDialog = true }
+                            onClick = onOpenLearn
+                        )
+                        HomeQuickActionCard(
+                            icon = "🔖",
+                            label = "Corpus",
+                            modifier = Modifier.weight(1f),
+                            onClick = onOpenResearchWorkspace
                         )
                     }
                 }
@@ -649,21 +654,6 @@ fun HomeScreen(
 
     // --- DIALOGS ---
 
-    if (showSettingsDialog) {
-        HomeSettingsDialog(
-            userPrefs = userPrefs,
-            onDismiss = { showSettingsDialog = false },
-            onReopenOnboarding = {
-                showSettingsDialog = false
-                showOnboardingDialog = true
-            },
-            onOpenAbout = {
-                showSettingsDialog = false
-                onOpenAbout()
-            }
-        )
-    }
-
     if (showFavoritesDialog) {
         HomeFavoritesDialog(
             userPrefs = userPrefs,
@@ -880,262 +870,6 @@ fun HomeScreenScriptCard(
         script = script,
         onOpenExplorer = onOpenExplorer,
         onOpenPlayground = onOpenPlayground
-    )
-}
-
-@Composable
-private fun HomeSettingsDialog(
-    userPrefs: UserPreferencesRepository,
-    onDismiss: () -> Unit,
-    onReopenOnboarding: () -> Unit = {},
-    onOpenAbout: () -> Unit = {}
-) {
-    var heightSliderValue by remember {
-        mutableFloatStateOf(userPrefs.getKeyboardHeightDp().toFloat())
-    }
-    var hapticsValue by remember {
-        mutableStateOf(userPrefs.isHapticsEnabled())
-    }
-    var themeValue by remember {
-        mutableStateOf(userPrefs.getThemePreference())
-    }
-    var scholarModeValue by remember {
-        mutableStateOf(userPrefs.isScholarMode())
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = "Theme & Keyboard Settings",
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleMedium
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScrollHelper()
-            ) {
-                // Appearance / Theme Selection
-                Text(
-                    text = "Appearance Theme",
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp,
-                    color = MaterialTheme.ancientKeysColors.keyText
-                )
-                Text(
-                    text = "Choose visual aesthetic for app and keyboard",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.ancientKeysColors.chipText
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    FilterChip(
-                        selected = themeValue == UserPreferencesRepository.THEME_SAGE,
-                        onClick = { themeValue = UserPreferencesRepository.THEME_SAGE },
-                        label = { Text("🌿 Minimal Sage", fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                            selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
-                        )
-                    )
-                    FilterChip(
-                        selected = themeValue == UserPreferencesRepository.THEME_LIGHT,
-                        onClick = { themeValue = UserPreferencesRepository.THEME_LIGHT },
-                        label = { Text("☀️ Light", fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                            selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
-                        )
-                    )
-                    FilterChip(
-                        selected = themeValue == UserPreferencesRepository.THEME_DARK,
-                        onClick = { themeValue = UserPreferencesRepository.THEME_DARK },
-                        label = { Text("🌙 Dark", fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                            selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
-                        )
-                    )
-                    FilterChip(
-                        selected = themeValue == UserPreferencesRepository.THEME_SEPIA,
-                        onClick = { themeValue = UserPreferencesRepository.THEME_SEPIA },
-                        label = { Text("📜 Scholar / Sepia", fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                            selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
-                        )
-                    )
-                    FilterChip(
-                        selected = themeValue == UserPreferencesRepository.THEME_SYSTEM,
-                        onClick = { themeValue = UserPreferencesRepository.THEME_SYSTEM },
-                        label = { Text("⚙️ System", fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                            selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Scholar Mode Setting
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Scholar Mode",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.sp
-                        )
-                        Text(
-                            text = "Show Unicode hex code points & epigraphic notes",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.ancientKeysColors.chipText
-                        )
-                    }
-                    FilterChip(
-                        selected = scholarModeValue,
-                        onClick = { scholarModeValue = !scholarModeValue },
-                        label = { Text(if (scholarModeValue) "🎓 On" else "🌱 Off", fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                            selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Keyboard Height Adjustment
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Keyboard Height",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp
-                    )
-                    Text(
-                        text = "${heightSliderValue.roundToInt()} dp (${when {
-                            heightSliderValue < 270 -> "Compact"
-                            heightSliderValue <= 310 -> "Standard"
-                            else -> "Tall"
-                        }})",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.ancientKeysColors.glyphAccent
-                    )
-                }
-
-                Slider(
-                    value = heightSliderValue,
-                    onValueChange = { heightSliderValue = it },
-                    valueRange = UserPreferencesRepository.MIN_KEYBOARD_HEIGHT_DP.toFloat()..UserPreferencesRepository.MAX_KEYBOARD_HEIGHT_DP.toFloat(),
-                    steps = 5
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    TextButton(onClick = { heightSliderValue = 250f }) {
-                        Text("Compact (250)", fontSize = 10.sp)
-                    }
-                    TextButton(onClick = { heightSliderValue = UserPreferencesRepository.DEFAULT_KEYBOARD_HEIGHT_DP.toFloat() }) {
-                        Text("Standard (290)", fontSize = 10.sp)
-                    }
-                    TextButton(onClick = { heightSliderValue = 330f }) {
-                        Text("Tall (330)", fontSize = 10.sp)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Haptics Setting
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Keypress Haptics",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.sp
-                        )
-                        Text(
-                            text = "Gentle vibration on key taps",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.ancientKeysColors.chipText
-                        )
-                    }
-                    FilterChip(
-                        selected = hapticsValue,
-                        onClick = { hapticsValue = !hapticsValue },
-                        label = { Text(if (hapticsValue) "Enabled" else "Disabled", fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                            selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                OutlinedButton(
-                    onClick = onReopenOnboarding,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("🚀 Reopen Setup Guide", fontSize = 12.sp)
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                OutlinedButton(
-                    onClick = onOpenAbout,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("ℹ️ About & Open Source Licenses", fontSize = 12.sp)
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    userPrefs.setKeyboardHeightDp(heightSliderValue.roundToInt())
-                    userPrefs.setHapticsEnabled(hapticsValue)
-                    userPrefs.setThemePreference(themeValue)
-                    userPrefs.setScholarMode(scholarModeValue)
-                    onDismiss()
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                    contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
-                )
-            ) {
-                Text("Save")
-            }
-        },
-        dismissButton = {
-            OutlinedButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
     )
 }
 

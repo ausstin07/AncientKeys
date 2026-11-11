@@ -658,7 +658,7 @@ private fun MultiModeKeyboardContent(
                             DropdownMenuItem(
                                 text = {
                                     Text(
-                                        text = if (isRom) "✓ Romanized Input" else "📜 Romanized Input",
+                                        text = if (isRom) "✓ Romanized Transliteration" else "📜 Romanized Transliteration",
                                         fontWeight = if (isRom) FontWeight.Bold else FontWeight.Normal,
                                         color = if (isRom) MaterialTheme.colorScheme.primary else MaterialTheme.ancientKeysColors.keyText
                                     )

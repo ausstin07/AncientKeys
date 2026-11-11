@@ -13,6 +13,8 @@ import androidx.compose.ui.text.font.FontFamily
 object HistoricalFontProvider {
 
     private val fontFamilyCache = mutableMapOf<String, FontFamily>()
+    private val rawTypefaceCache = mutableMapOf<String, Typeface?>()
+    private val glyphSupportCache = mutableMapOf<String, Boolean>()
 
     /**
      * Maps script IDs to bundled asset font paths.
@@ -50,9 +52,52 @@ object HistoricalFontProvider {
     }
 
     /**
+     * Checks if the character can be rendered by the device font or bundled typeface.
+     * Uses android.graphics.Paint.hasGlyph(String) on Android M+ (API 23+).
+     * Falls back to true if checking is unavailable or in unit tests.
+     */
+    fun canRenderGlyph(context: Context?, scriptId: String, character: String): Boolean {
+        if (character.isEmpty()) return false
+        val cleanId = scriptId.lowercase().trim()
+        val cacheKey = "$cleanId:$character"
+        glyphSupportCache[cacheKey]?.let { return it }
+
+        val canRender = try {
+            val paint = android.graphics.Paint()
+            if (context != null) {
+                val typeface = rawTypefaceCache.getOrPut(cleanId) {
+                    val path = getAssetPathForScript(cleanId)
+                    if (path != null) {
+                        try {
+                            Typeface.createFromAsset(context.assets, path)
+                        } catch (_: Throwable) {
+                            null
+                        }
+                    } else null
+                }
+                if (typeface != null) {
+                    paint.typeface = typeface
+                }
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                paint.hasGlyph(character)
+            } else {
+                true
+            }
+        } catch (_: Throwable) {
+            true
+        }
+
+        glyphSupportCache[cacheKey] = canRender
+        return canRender
+    }
+
+    /**
      * Clears the in-memory typeface cache (useful for testing or memory reclamation).
      */
     fun clearCache() {
         fontFamilyCache.clear()
+        rawTypefaceCache.clear()
+        glyphSupportCache.clear()
     }
 }

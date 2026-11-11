@@ -470,6 +470,7 @@ fun CharacterExplorerScreen(
 
                         ExplorerCharacterTile(
                             key = scriptKey,
+                            scriptId = currentScript.id,
                             scriptFont = scriptFont,
                             isSelected = isSelected,
                             isFavorite = isFav,
@@ -533,11 +534,16 @@ fun CharacterExplorerScreen(
 @Composable
 private fun ExplorerCharacterTile(
     key: ScriptKey,
+    scriptId: String,
     scriptFont: FontFamily,
     isSelected: Boolean,
     isFavorite: Boolean,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    val isRenderable = remember(key.character, scriptId) {
+        HistoricalFontProvider.canRenderGlyph(context, scriptId, key.character)
+    }
     val displayGlyph = UnicodeMetadataHelper.getDisplayGlyph(key)
     val officialName = UnicodeMetadataHelper.getOfficialUnicodeName(key)
     val accessibleDesc = "$displayGlyph, $officialName, Code point ${key.unicodeCodePoint}"
@@ -601,6 +607,24 @@ private fun ExplorerCharacterTile(
                 )
             }
 
+            if (!isRenderable) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(3.dp),
+                    shape = RoundedCornerShape(3.dp),
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f)
+                ) {
+                    Text(
+                        text = "Font N/A",
+                        fontSize = 7.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(horizontal = 2.dp, vertical = 1.dp)
+                    )
+                }
+            }
+
             if (isFavorite) {
                 Text(
                     text = "★",
@@ -628,6 +652,10 @@ private fun CharacterDetailPanel(
     onCopyGlyph: () -> Unit,
     onOpenFullDetails: () -> Unit
 ) {
+    val context = LocalContext.current
+    val isRenderable = remember(key.character, script.id) {
+        HistoricalFontProvider.canRenderGlyph(context, script.id, key.character)
+    }
     val displayGlyph = UnicodeMetadataHelper.getDisplayGlyph(key)
     val officialName = UnicodeMetadataHelper.getOfficialUnicodeName(key)
 
@@ -733,6 +761,23 @@ private fun CharacterDetailPanel(
                         fontFamily = FontFamily.Monospace,
                         color = MaterialTheme.ancientKeysColors.chipText.copy(alpha = 0.8f)
                     )
+
+                    if (!isRenderable) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "⚠️ Requires specialized font support on this device",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 9.sp,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -810,7 +855,11 @@ private fun FullCharacterDetailSheet(
     onCopyGlyph: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val isRenderable = remember(key.character, script.id) {
+        HistoricalFontProvider.canRenderGlyph(context, script.id, key.character)
+    }
     val displayGlyph = UnicodeMetadataHelper.getDisplayGlyph(key)
     val officialName = UnicodeMetadataHelper.getOfficialUnicodeName(key)
     val codePointInt = UnicodeMetadataHelper.parseCodePointHex(key.unicodeCodePoint)
@@ -893,6 +942,10 @@ private fun FullCharacterDetailSheet(
 
             DetailSpecRow(label = "Script", value = script.name)
             DetailSpecRow(label = "Category", value = key.category)
+            DetailSpecRow(
+                label = "Font Rendering",
+                value = if (isRenderable) "Supported" else "Requires device/custom font support"
+            )
             DetailSpecRow(label = "Transliteration", value = key.transliteration.ifBlank { "Unavailable" })
             DetailSpecRow(label = "Pronunciation / IPA", value = key.pronunciationIpa.ifBlank { key.phoneticHint.ifBlank { "Unavailable" } })
             DetailSpecRow(label = "Meaning / Sign", value = key.meaning.ifBlank { "Unavailable" })

@@ -159,5 +159,22 @@ class CharacterExplorerTest {
         val searchGardiner = ScriptSearchEngine.searchCharacters(egyptian.keys, "G1")
         assertTrue(searchGardiner.any { it.phoneticHint.contains("G1", ignoreCase = true) || it.label.contains("G1", ignoreCase = true) })
     }
+
+    @Test
+    fun testCanRenderGlyphFallbackAndCaching() {
+        // Empty character should return false
+        assertFalse(HistoricalFontProvider.canRenderGlyph(null, "greek", ""))
+
+        // Non-empty should return true safely even in JVM/unit test environment without throwing
+        val canRenderAlpha = HistoricalFontProvider.canRenderGlyph(null, "greek", "α")
+        assertTrue(canRenderAlpha)
+
+        val canRenderRunic = HistoricalFontProvider.canRenderGlyph(null, "runic", "ᚠ")
+        assertTrue(canRenderRunic)
+
+        // Clear cache should reset cleanly without exception
+        HistoricalFontProvider.clearCache()
+        assertTrue(HistoricalFontProvider.canRenderGlyph(null, "phoenician", "𐤀"))
+    }
 }
 
