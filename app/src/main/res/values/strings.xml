@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">AncientKeys</string>
+    <string name="ime_name">AncientKeys Keyboard</string>
+    <string name="subtype_ancient_keys">Historical Scripts (Unicode)</string>
+</resources>

@@ -1,0 +1,37 @@
+# Local machine configurations & sensitive properties
+local.properties
+keystore.properties
+signing.properties
+
+# Keystores & cryptographic keys
+*.jks
+*.keystore
+*.p12
+*.key
+*.pem
+*.pk8
+
+# Build caches & compiled binary outputs
+.gradle/
+.kotlin/
+build/
+app/build/
+*.apk
+*.aab
+*.dm
+*.idsig
+
+# Developmental recovery checkpoints
+.checkpoint*
+
+# Temporary logs & crash traces
+*.log
+ime_crash.txt
+
+# IDE & OS-specific metadata
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+

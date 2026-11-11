@@ -1,0 +1,22 @@
+Noto Fonts - Copyright and License Notice
+
+This directory bundles offline Google Noto fonts for historical scripts:
+- NotoSansBrahmi-Regular.ttf
+- NotoSansEgyptianHieroglyphs-Regular.ttf
+- NotoSansKharosthi-Regular.ttf
+- NotoSansPhoenician-Regular.ttf
+- NotoSansRunic-Regular.ttf
+
+Copyright (c) 2013-2022 Google Inc. All Rights Reserved.
+Noto is a trademark of Google Inc.
+Designed and maintained by Google and Monotype Imaging Inc.
+
+These fonts are licensed under the SIL Open Font License, Version 1.1.
+License URL: http://scripts.sil.org/OFL
+SPDX-License-Identifier: OFL-1.1
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of the Font Software, to use, study, copy, merge, embed, modify,
+redistribute, and sell modified and unmodified copies of the Font
+Software, subject to the conditions of the SIL Open Font License, Version 1.1.
+
