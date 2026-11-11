@@ -90,7 +90,7 @@ import com.ancientkeys.keyboard.util.UnicodeMetadataHelper
 @Composable
 fun ImeKeyboardLayout(
     editorInfo: EditorInfo?,
-    initialScriptId: String = "egyptian",
+    initialScriptId: String = "english",
     onKeyClick: (ScriptKey) -> Unit,
     onSpaceClick: () -> Unit,
     onBackspaceClick: () -> Unit,
@@ -111,7 +111,7 @@ fun ImeKeyboardLayout(
             configuredDefault
         } else {
             val recents = userPrefs.getRecentScriptIds()
-            recents.firstOrNull { ScriptRegistry.getScriptById(it) != null } ?: initialScriptId
+            recents.firstOrNull { it == "english" || ScriptRegistry.getScriptById(it) != null } ?: initialScriptId
         }
     }
 
@@ -283,6 +283,18 @@ private fun MultiModeKeyboardContent(
     val applyScriptSwitch: (HistoricalScript) -> Unit = { targetScript ->
         onScriptChange(targetScript.id)
         onKeyboardModeChange(KeyboardMode.HISTORICAL)
+        userPrefs.setDefaultScriptId(targetScript.id)
+        userPrefs.recordScriptAccess(targetScript.id)
+        selectedCategoryIndex = 0
+        showFavoritesOnly = false
+        romanizedBuffer = ""
+        phoneticBuffer = ""
+        pendingScriptSwitch = null
+    }
+
+    val applyEnglishSwitch: () -> Unit = {
+        onKeyboardModeChange(KeyboardMode.ENGLISH_QWERTY)
+        userPrefs.setDefaultScriptId("english")
         selectedCategoryIndex = 0
         showFavoritesOnly = false
         romanizedBuffer = ""
@@ -336,6 +348,7 @@ private fun MultiModeKeyboardContent(
         ) {
             // Script Selector Dropdown trigger
             Box {
+                val isEnglishMode = keyboardMode == KeyboardMode.ENGLISH_QWERTY
                 Button(
                     onClick = {
                         triggerHaptic()
@@ -349,16 +362,16 @@ private fun MultiModeKeyboardContent(
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (keyboardMode == KeyboardMode.HISTORICAL)
+                        containerColor = if (keyboardMode == KeyboardMode.HISTORICAL || isEnglishMode)
                             MaterialTheme.ancientKeysColors.keyPrimaryActionBackground
                         else MaterialTheme.ancientKeysColors.chipBackground,
-                        contentColor = if (keyboardMode == KeyboardMode.HISTORICAL)
+                        contentColor = if (keyboardMode == KeyboardMode.HISTORICAL || isEnglishMode)
                             MaterialTheme.ancientKeysColors.keyPrimaryActionText
                         else MaterialTheme.ancientKeysColors.chipText
                     )
                 ) {
                     Text(
-                        text = "🏛️ ${ImeDimensionsHelper.getCompactScriptName(currentScript)} ▾",
+                        text = if (isEnglishMode) "🔤 English ▾" else "🏛️ ${ImeDimensionsHelper.getCompactScriptName(currentScript)} ▾",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -370,13 +383,35 @@ private fun MultiModeKeyboardContent(
                     expanded = isScriptMenuExpanded,
                     onDismissRequest = { isScriptMenuExpanded = false }
                 ) {
+                    // English QWERTY Option
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "English QWERTY",
+                                    fontWeight = if (isEnglishMode) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isEnglishMode) MaterialTheme.colorScheme.primary else MaterialTheme.ancientKeysColors.keyText
+                                )
+                            }
+                        },
+                        onClick = {
+                            isScriptMenuExpanded = false
+                            if (!isEnglishMode) {
+                                applyEnglishSwitch()
+                            }
+                        }
+                    )
+
+                    // Historical Scripts
                     ScriptRegistry.allScripts.forEach { script ->
+                        val isSelected = !isEnglishMode && script.id == currentScript.id
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         script.name,
-                                        fontWeight = if (script.id == currentScript.id) FontWeight.Bold else FontWeight.Normal
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.ancientKeysColors.keyText
                                     )
                                     if (script.isRtl) {
                                         Spacer(modifier = Modifier.width(6.dp))
@@ -386,8 +421,9 @@ private fun MultiModeKeyboardContent(
                             },
                             onClick = {
                                 isScriptMenuExpanded = false
+                                val activeScriptKey = if (isEnglishMode) "english" else currentScript.id
                                 when (ScriptSwitchHandler.evaluateScriptSwitch(
-                                    currentScriptId = currentScript.id,
+                                    currentScriptId = activeScriptKey,
                                     targetScriptId = script.id,
                                     isConfirmationEnabled = userPrefs.isConfirmScriptSwitchEnabled()
                                 )) {
@@ -442,7 +478,7 @@ private fun MultiModeKeyboardContent(
                     selected = keyboardMode == KeyboardMode.ENGLISH_QWERTY,
                     onClick = {
                         triggerHaptic()
-                        onKeyboardModeChange(KeyboardMode.ENGLISH_QWERTY)
+                        applyEnglishSwitch()
                     },
                     label = { Text("ABC", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                     shape = RoundedCornerShape(8.dp),
@@ -461,7 +497,7 @@ private fun MultiModeKeyboardContent(
                     selected = keyboardMode == KeyboardMode.HISTORICAL,
                     onClick = {
                         triggerHaptic()
-                        onKeyboardModeChange(KeyboardMode.HISTORICAL)
+                        applyScriptSwitch(currentScript)
                     },
                     label = { Text("Native", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                     shape = RoundedCornerShape(8.dp),
@@ -1109,7 +1145,7 @@ private fun MultiModeKeyboardContent(
             if (pendingScriptSwitch != null) {
                 val target = pendingScriptSwitch!!
                 ScriptSwitchConfirmationOverlay(
-                    currentScriptName = currentScript.name,
+                    currentScriptName = if (keyboardMode == KeyboardMode.ENGLISH_QWERTY) "English QWERTY" else currentScript.name,
                     targetScript = target,
                     isLandscape = isLandscape,
                     onConfirm = {
@@ -1146,15 +1182,19 @@ private fun MultiModeKeyboardContent(
                     .widthIn(min = 38.dp)
                     .clickable {
                         triggerHaptic()
-                        onKeyboardModeChange(
-                            when (keyboardMode) {
-                                KeyboardMode.HISTORICAL -> if (activePhoneticEngine != null) KeyboardMode.EASY_PHONETIC else KeyboardMode.ENGLISH_QWERTY
-                                KeyboardMode.EASY_PHONETIC -> KeyboardMode.ENGLISH_QWERTY
-                                KeyboardMode.ENGLISH_QWERTY -> KeyboardMode.NUMBERS_SYMBOLS
-                                KeyboardMode.NUMBERS_SYMBOLS -> if (activeRomanizer != null) KeyboardMode.ROMANIZED else KeyboardMode.HISTORICAL
-                                KeyboardMode.ROMANIZED -> KeyboardMode.HISTORICAL
-                            }
-                        )
+                        val nextMode = when (keyboardMode) {
+                            KeyboardMode.HISTORICAL -> if (activePhoneticEngine != null) KeyboardMode.EASY_PHONETIC else KeyboardMode.ENGLISH_QWERTY
+                            KeyboardMode.EASY_PHONETIC -> KeyboardMode.ENGLISH_QWERTY
+                            KeyboardMode.ENGLISH_QWERTY -> KeyboardMode.NUMBERS_SYMBOLS
+                            KeyboardMode.NUMBERS_SYMBOLS -> if (activeRomanizer != null) KeyboardMode.ROMANIZED else KeyboardMode.HISTORICAL
+                            KeyboardMode.ROMANIZED -> KeyboardMode.HISTORICAL
+                        }
+                        onKeyboardModeChange(nextMode)
+                        if (nextMode == KeyboardMode.ENGLISH_QWERTY) {
+                            userPrefs.setDefaultScriptId("english")
+                        } else if (nextMode == KeyboardMode.HISTORICAL) {
+                            userPrefs.setDefaultScriptId(currentScript.id)
+                        }
                     }
             ) {
                 Box(

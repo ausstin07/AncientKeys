@@ -55,7 +55,7 @@ class UserPreferencesRepository(private val context: Context? = null) {
         const val KEY_SIZE_LARGE = "large"
         const val DEFAULT_KEY_SIZE = KEY_SIZE_MEDIUM
 
-        const val DEFAULT_SCRIPT_ID = "greek"
+        const val DEFAULT_SCRIPT_ID = "english"
 
         private const val KEY_RECENTS = "recent_scripts_csv"
         private const val KEY_FAVORITES = "favorite_characters_set"

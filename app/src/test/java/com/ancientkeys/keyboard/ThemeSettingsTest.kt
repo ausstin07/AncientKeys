@@ -127,8 +127,8 @@ class ThemeSettingsTest {
 
     @Test
     fun testDefaultScriptPreference() {
-        // Default script is Greek
-        assertEquals("greek", repo.getDefaultScriptId())
+        // Default script is English QWERTY
+        assertEquals("english", repo.getDefaultScriptId())
 
         // Set across all 7 supported choices
         val scripts = listOf("greek", "egyptian", "brahmi", "kharosthi", "phoenician", "runic", "english")
