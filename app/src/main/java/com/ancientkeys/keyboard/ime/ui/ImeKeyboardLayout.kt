@@ -51,6 +51,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -272,6 +273,7 @@ private fun MultiModeKeyboardContent(
     var selectedCategoryIndex by rememberSaveable(currentScriptId) { mutableIntStateOf(0) }
     var showFavoritesOnly by rememberSaveable(currentScriptId) { mutableStateOf(false) }
     var isScriptMenuExpanded by remember { mutableStateOf(false) }
+    var isOverflowMenuExpanded by remember { mutableStateOf(false) }
     var romanizedBuffer by rememberSaveable { mutableStateOf("") }
     var phoneticBuffer by rememberSaveable { mutableStateOf("") }
     var isScholarMode by rememberSaveable { mutableStateOf(userPrefs.isScholarMode()) }
@@ -356,7 +358,7 @@ private fun MultiModeKeyboardContent(
                     },
                     modifier = Modifier
                         .height(if (isLandscape) 28.dp else 32.dp)
-                        .widthIn(max = 125.dp),
+                        .widthIn(max = 135.dp),
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
@@ -402,6 +404,8 @@ private fun MultiModeKeyboardContent(
                         }
                     )
 
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
                     // Historical Scripts
                     ScriptRegistry.allScripts.forEach { script ->
                         val isSelected = !isEnglishMode && script.id == currentScript.id
@@ -443,108 +447,138 @@ private fun MultiModeKeyboardContent(
                 }
             }
 
-            // Mode Selector Pills: [Easy] [ABC] [Native] [?123] [Rom]
+            // Primary Mode Switchers (No horizontal scrolling clutter)
             Row(
                 modifier = Modifier
                     .weight(1f)
-                    .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Easy Phonetic Mode Pill (for supported scripts: Brahmi, Kharosthi, Greek)
-                if (activePhoneticEngine != null) {
+                if (keyboardMode == KeyboardMode.ENGLISH_QWERTY) {
+                    // Quick 1-tap jump to active historical script
                     FilterChip(
-                        selected = keyboardMode == KeyboardMode.EASY_PHONETIC,
+                        selected = false,
                         onClick = {
                             triggerHaptic()
-                            onKeyboardModeChange(KeyboardMode.EASY_PHONETIC)
+                            applyScriptSwitch(currentScript)
                         },
-                        label = { Text("Easy", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                        label = { Text("🏛️ ${ImeDimensionsHelper.getCompactScriptName(currentScript)}", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                         shape = RoundedCornerShape(8.dp),
                         border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
                         modifier = Modifier.height(28.dp),
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                            selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
                             containerColor = MaterialTheme.ancientKeysColors.chipBackground,
                             labelColor = MaterialTheme.ancientKeysColors.chipText
                         )
                     )
-                }
-
-                // English QWERTY Mode Pill
-                FilterChip(
-                    selected = keyboardMode == KeyboardMode.ENGLISH_QWERTY,
-                    onClick = {
-                        triggerHaptic()
-                        applyEnglishSwitch()
-                    },
-                    label = { Text("ABC", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
-                    modifier = Modifier.height(28.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                        selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
-                        containerColor = MaterialTheme.ancientKeysColors.chipBackground,
-                        labelColor = MaterialTheme.ancientKeysColors.chipText
-                    )
-                )
-
-                // Native Historical Script Mode Pill
-                FilterChip(
-                    selected = keyboardMode == KeyboardMode.HISTORICAL,
-                    onClick = {
-                        triggerHaptic()
-                        applyScriptSwitch(currentScript)
-                    },
-                    label = { Text("Native", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
-                    modifier = Modifier.height(28.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                        selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
-                        containerColor = MaterialTheme.ancientKeysColors.chipBackground,
-                        labelColor = MaterialTheme.ancientKeysColors.chipText
-                    )
-                )
-
-                // Numbers / Symbols Mode Pill
-                FilterChip(
-                    selected = keyboardMode == KeyboardMode.NUMBERS_SYMBOLS,
-                    onClick = {
-                        triggerHaptic()
-                        onKeyboardModeChange(KeyboardMode.NUMBERS_SYMBOLS)
-                    },
-                    label = { Text("?123", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
-                    modifier = Modifier.height(28.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                        selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
-                        containerColor = MaterialTheme.ancientKeysColors.chipBackground,
-                        labelColor = MaterialTheme.ancientKeysColors.chipText
-                    )
-                )
-
-                // Scholarly Romanized Input Mode Pill (for supported scripts: Brahmi, Kharosthi, Greek)
-                if (activeRomanizer != null) {
                     FilterChip(
-                        selected = keyboardMode == KeyboardMode.ROMANIZED,
+                        selected = false,
                         onClick = {
                             triggerHaptic()
-                            onKeyboardModeChange(KeyboardMode.ROMANIZED)
+                            onKeyboardModeChange(KeyboardMode.NUMBERS_SYMBOLS)
                         },
-                        label = { Text("Rom", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                        label = { Text("?123", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                         shape = RoundedCornerShape(8.dp),
                         border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
                         modifier = Modifier.height(28.dp),
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                            selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
+                            containerColor = MaterialTheme.ancientKeysColors.chipBackground,
+                            labelColor = MaterialTheme.ancientKeysColors.chipText
+                        )
+                    )
+                } else if (keyboardMode == KeyboardMode.HISTORICAL) {
+                    // Quick 1-tap jump to English QWERTY
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            triggerHaptic()
+                            applyEnglishSwitch()
+                        },
+                        label = { Text("🔤 ABC", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                        modifier = Modifier.height(28.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.ancientKeysColors.chipBackground,
+                            labelColor = MaterialTheme.ancientKeysColors.chipText
+                        )
+                    )
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            triggerHaptic()
+                            onKeyboardModeChange(KeyboardMode.NUMBERS_SYMBOLS)
+                        },
+                        label = { Text("?123", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                        modifier = Modifier.height(28.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.ancientKeysColors.chipBackground,
+                            labelColor = MaterialTheme.ancientKeysColors.chipText
+                        )
+                    )
+                } else if (keyboardMode == KeyboardMode.NUMBERS_SYMBOLS) {
+                    // Quick return to English or Historical
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            triggerHaptic()
+                            applyEnglishSwitch()
+                        },
+                        label = { Text("🔤 ABC", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                        modifier = Modifier.height(28.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.ancientKeysColors.chipBackground,
+                            labelColor = MaterialTheme.ancientKeysColors.chipText
+                        )
+                    )
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            triggerHaptic()
+                            applyScriptSwitch(currentScript)
+                        },
+                        label = { Text("🏛️ ${ImeDimensionsHelper.getCompactScriptName(currentScript)}", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                        modifier = Modifier.height(28.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.ancientKeysColors.chipBackground,
+                            labelColor = MaterialTheme.ancientKeysColors.chipText
+                        )
+                    )
+                } else {
+                    // Phonetic or Romanized mode: quick return to native or English
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            triggerHaptic()
+                            applyScriptSwitch(currentScript)
+                        },
+                        label = { Text("🏛️ Native", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                        modifier = Modifier.height(28.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.ancientKeysColors.chipBackground,
+                            labelColor = MaterialTheme.ancientKeysColors.chipText
+                        )
+                    )
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            triggerHaptic()
+                            applyEnglishSwitch()
+                        },
+                        label = { Text("🔤 ABC", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                        modifier = Modifier.height(28.dp),
+                        colors = FilterChipDefaults.filterChipColors(
                             containerColor = MaterialTheme.ancientKeysColors.chipBackground,
                             labelColor = MaterialTheme.ancientKeysColors.chipText
                         )
@@ -552,24 +586,116 @@ private fun MultiModeKeyboardContent(
                 }
             }
 
-            // Switch to External System IME Button
-            OutlinedButton(
-                onClick = {
-                    triggerHaptic()
-                    onSwitchKeyboardClick()
-                },
-                modifier = Modifier
-                    .height(if (isLandscape) 28.dp else 30.dp)
-                    .widthIn(min = 36.dp),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = MaterialTheme.ancientKeysColors.chipBackground,
-                    contentColor = MaterialTheme.ancientKeysColors.chipText
-                ),
-                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+            // Right Utility Actions: 🌐 Switch Keyboard & ⋮ Expandable Menu
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Text("🌐 Switch", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                // Switch to External System IME Button
+                OutlinedButton(
+                    onClick = {
+                        triggerHaptic()
+                        onSwitchKeyboardClick()
+                    },
+                    modifier = Modifier
+                        .height(if (isLandscape) 28.dp else 30.dp)
+                        .widthIn(min = 32.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = MaterialTheme.ancientKeysColors.chipBackground,
+                        contentColor = MaterialTheme.ancientKeysColors.chipText
+                    ),
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text("🌐", fontSize = 12.sp)
+                }
+
+                // Expandable More Options Menu
+                Box {
+                    OutlinedButton(
+                        onClick = {
+                            triggerHaptic()
+                            isOverflowMenuExpanded = true
+                        },
+                        modifier = Modifier
+                            .height(if (isLandscape) 28.dp else 30.dp)
+                            .widthIn(min = 28.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = MaterialTheme.ancientKeysColors.chipBackground,
+                            contentColor = MaterialTheme.ancientKeysColors.chipText
+                        ),
+                        contentPadding = PaddingValues(horizontal = 5.dp, vertical = 2.dp)
+                    ) {
+                        Text("⋮", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    DropdownMenu(
+                        expanded = isOverflowMenuExpanded,
+                        onDismissRequest = { isOverflowMenuExpanded = false }
+                    ) {
+                        if (activePhoneticEngine != null) {
+                            val isPhonetic = keyboardMode == KeyboardMode.EASY_PHONETIC
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = if (isPhonetic) "✓ Easy Phonetic Input" else "⚡ Easy Phonetic Input",
+                                        fontWeight = if (isPhonetic) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isPhonetic) MaterialTheme.colorScheme.primary else MaterialTheme.ancientKeysColors.keyText
+                                    )
+                                },
+                                onClick = {
+                                    isOverflowMenuExpanded = false
+                                    onKeyboardModeChange(if (isPhonetic) KeyboardMode.HISTORICAL else KeyboardMode.EASY_PHONETIC)
+                                }
+                            )
+                        }
+
+                        if (activeRomanizer != null) {
+                            val isRom = keyboardMode == KeyboardMode.ROMANIZED
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = if (isRom) "✓ Romanized Input" else "📜 Romanized Input",
+                                        fontWeight = if (isRom) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isRom) MaterialTheme.colorScheme.primary else MaterialTheme.ancientKeysColors.keyText
+                                    )
+                                },
+                                onClick = {
+                                    isOverflowMenuExpanded = false
+                                    onKeyboardModeChange(if (isRom) KeyboardMode.HISTORICAL else KeyboardMode.ROMANIZED)
+                                }
+                            )
+                        }
+
+                        if (activePhoneticEngine != null || activeRomanizer != null) {
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                        }
+
+                        DropdownMenuItem(
+                            text = { Text("🌐 Switch to Other Keyboard") },
+                            onClick = {
+                                isOverflowMenuExpanded = false
+                                onSwitchKeyboardClick()
+                            }
+                        )
+
+                        if (keyboardMode == KeyboardMode.HISTORICAL) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(if (isScholarMode) "✓ Scholar Mode (Categories)" else "Scholar Mode")
+                                },
+                                onClick = {
+                                    isOverflowMenuExpanded = false
+                                    isScholarMode = !isScholarMode
+                                    userPrefs.setScholarMode(isScholarMode)
+                                }
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -1179,37 +1305,37 @@ private fun MultiModeKeyboardContent(
                 shadowElevation = 1.dp,
                 modifier = Modifier
                     .fillMaxHeight()
-                    .widthIn(min = 38.dp)
+                    .widthIn(min = 40.dp)
                     .clickable {
                         triggerHaptic()
-                        val nextMode = when (keyboardMode) {
-                            KeyboardMode.HISTORICAL -> if (activePhoneticEngine != null) KeyboardMode.EASY_PHONETIC else KeyboardMode.ENGLISH_QWERTY
-                            KeyboardMode.EASY_PHONETIC -> KeyboardMode.ENGLISH_QWERTY
-                            KeyboardMode.ENGLISH_QWERTY -> KeyboardMode.NUMBERS_SYMBOLS
-                            KeyboardMode.NUMBERS_SYMBOLS -> if (activeRomanizer != null) KeyboardMode.ROMANIZED else KeyboardMode.HISTORICAL
-                            KeyboardMode.ROMANIZED -> KeyboardMode.HISTORICAL
-                        }
-                        onKeyboardModeChange(nextMode)
-                        if (nextMode == KeyboardMode.ENGLISH_QWERTY) {
-                            userPrefs.setDefaultScriptId("english")
-                        } else if (nextMode == KeyboardMode.HISTORICAL) {
-                            userPrefs.setDefaultScriptId(currentScript.id)
+                        when (keyboardMode) {
+                            KeyboardMode.ENGLISH_QWERTY -> {
+                                onKeyboardModeChange(KeyboardMode.NUMBERS_SYMBOLS)
+                            }
+                            KeyboardMode.NUMBERS_SYMBOLS -> {
+                                applyEnglishSwitch()
+                            }
+                            KeyboardMode.HISTORICAL -> {
+                                applyEnglishSwitch()
+                            }
+                            KeyboardMode.EASY_PHONETIC, KeyboardMode.ROMANIZED -> {
+                                onKeyboardModeChange(KeyboardMode.NUMBERS_SYMBOLS)
+                            }
                         }
                     }
             ) {
                 Box(
-                    modifier = Modifier.padding(horizontal = 6.dp),
+                    modifier = Modifier.padding(horizontal = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = when (keyboardMode) {
-                            KeyboardMode.HISTORICAL -> if (currentScript.isRtl) "RTL" else "LTR"
-                            KeyboardMode.EASY_PHONETIC -> "EASY"
-                            KeyboardMode.ENGLISH_QWERTY -> "ABC"
-                            KeyboardMode.NUMBERS_SYMBOLS -> "?123"
-                            KeyboardMode.ROMANIZED -> "ROM"
+                            KeyboardMode.ENGLISH_QWERTY -> "?123"
+                            KeyboardMode.NUMBERS_SYMBOLS -> "ABC"
+                            KeyboardMode.HISTORICAL -> "ABC"
+                            KeyboardMode.EASY_PHONETIC, KeyboardMode.ROMANIZED -> "?123"
                         },
-                        fontSize = if (isLandscape) 10.sp else 11.sp,
+                        fontSize = if (isLandscape) 11.sp else 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.ancientKeysColors.keyActionText,
                         maxLines = 1
@@ -1241,7 +1367,10 @@ private fun MultiModeKeyboardContent(
                 }
             }
 
-            // Space Bar
+            // Space Bar - Expands to weight 3.8f when Backspace is in Row 3, or 2.4f in Historical mode
+            val isHistorical = keyboardMode == KeyboardMode.HISTORICAL
+            val spaceWeight = if (isHistorical) 2.4f else 3.8f
+
             Button(
                 onClick = {
                     triggerHaptic()
@@ -1261,7 +1390,7 @@ private fun MultiModeKeyboardContent(
                     onSpaceClick()
                 },
                 modifier = Modifier
-                    .weight(2.4f)
+                    .weight(spaceWeight)
                     .fillMaxHeight()
                     .widthIn(min = ImeDimensionsHelper.MIN_SPACE_KEY_WIDTH_DP.dp)
                     .semantics { contentDescription = "Space" },
@@ -1312,32 +1441,22 @@ private fun MultiModeKeyboardContent(
                 }
             }
 
-            // Backspace (⌫)
-            Button(
-                onClick = {
-                    triggerHaptic()
-                    if (keyboardMode == KeyboardMode.EASY_PHONETIC && phoneticBuffer.isNotEmpty()) {
-                        phoneticBuffer = phoneticBuffer.dropLast(1)
-                    } else if (keyboardMode == KeyboardMode.ROMANIZED && romanizedBuffer.isNotEmpty()) {
-                        romanizedBuffer = romanizedBuffer.dropLast(1)
-                    } else {
+            // Backspace (⌫) — ONLY visible in Historical mode (in English & Numbers, Backspace is on Row 3)
+            if (isHistorical) {
+                RepeatKeyButton(
+                    onClick = {
+                        triggerHaptic()
                         onBackspaceClick()
-                    }
-                },
-                modifier = Modifier
-                    .weight(1.3f)
-                    .fillMaxHeight()
-                    .widthIn(min = ImeDimensionsHelper.MIN_BACKSPACE_KEY_WIDTH_DP.dp)
-                    .semantics { contentDescription = "Backspace" },
-                shape = AncientKeysDesignTokens.Shapes.keyShape,
-                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.ancientKeysColors.keyActionBackground,
-                    contentColor = MaterialTheme.ancientKeysColors.keyActionText
-                )
-            ) {
-                Text("⌫", fontSize = if (isLandscape) 14.sp else 16.sp, fontWeight = FontWeight.Bold)
+                    },
+                    modifier = Modifier
+                        .weight(1.3f)
+                        .fillMaxHeight()
+                        .widthIn(min = ImeDimensionsHelper.MIN_BACKSPACE_KEY_WIDTH_DP.dp),
+                    shape = AncientKeysDesignTokens.Shapes.keyShape,
+                    contentDescription = "Backspace"
+                ) {
+                    Text("⌫", fontSize = if (isLandscape) 14.sp else 16.sp, fontWeight = FontWeight.Bold)
+                }
             }
 
             // Enter / Action Key - Prominent Sage Primary Action Key matching EditorInfo semantics
@@ -1512,22 +1631,14 @@ private fun EnglishQwertyKeyboard(
                 )
             }
 
-            // Inline Backspace on Row 3
-            Button(
+            // Inline Repeat Backspace on Row 3
+            RepeatKeyButton(
                 onClick = onBackspaceClick,
                 modifier = Modifier
                     .weight(1.5f)
                     .fillMaxHeight()
-                    .padding(vertical = 1.dp)
-                    .semantics { contentDescription = "Backspace" },
-                shape = AncientKeysDesignTokens.Shapes.actionKeyShape,
-                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = AncientKeysDesignTokens.Elevation.keyElevation),
-                contentPadding = PaddingValues(0.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.ancientKeysColors.keyActionBackground,
-                    contentColor = MaterialTheme.ancientKeysColors.keyActionText
-                )
+                    .padding(vertical = 1.dp),
+                contentDescription = "Backspace"
             ) {
                 Text("⌫", fontSize = if (isLandscape) 14.sp else 16.sp, fontWeight = FontWeight.Bold)
             }
@@ -1626,20 +1737,13 @@ private fun NumbersSymbolsKeyboard(
                 )
             }
 
-            Button(
+            RepeatKeyButton(
                 onClick = onBackspaceClick,
                 modifier = Modifier
                     .weight(1.8f)
                     .fillMaxHeight()
                     .padding(vertical = 1.dp),
-                shape = AncientKeysDesignTokens.Shapes.actionKeyShape,
-                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = AncientKeysDesignTokens.Elevation.keyElevation),
-                contentPadding = PaddingValues(0.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.ancientKeysColors.keyActionBackground,
-                    contentColor = MaterialTheme.ancientKeysColors.keyActionText
-                )
+                contentDescription = "Backspace"
             ) {
                 Text("⌫", fontSize = if (isLandscape) 14.sp else 16.sp, fontWeight = FontWeight.Bold)
             }
