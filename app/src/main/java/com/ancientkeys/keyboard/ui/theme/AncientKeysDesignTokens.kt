@@ -31,6 +31,7 @@ object AncientKeysDesignTokens {
 
     object Shapes {
         val keyShape = RoundedCornerShape(7.dp)
+        val actionKeyShape = RoundedCornerShape(7.dp)
         val pillShape = RoundedCornerShape(24.dp)
         val cardShape = RoundedCornerShape(14.dp)
         val chipShape = RoundedCornerShape(8.dp)
@@ -49,6 +50,8 @@ object AncientKeysDesignTokens {
         val flat = 0.dp
         val card = 1.dp
         val key = 1.dp
+        val keyElevation = 1.dp
+        val activeElevation = 2.dp
         val dropdown = 3.dp
         val modal = 6.dp
     }

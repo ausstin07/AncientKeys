@@ -24,6 +24,7 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.ancientkeys.keyboard.ime.ui.ImeKeyboardLayout
+import com.ancientkeys.keyboard.storage.UserPreferencesRepository
 import com.ancientkeys.keyboard.ui.theme.AncientKeysTheme
 
 /**
@@ -54,6 +55,10 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
     // Observable state for the current field's EditorInfo to reactively handle focus changes
     private val currentEditorInfoState = mutableStateOf<EditorInfo?>(null)
 
+    // Observable state for active theme to reactively handle theme changes while IME is open
+    private val currentThemeState = mutableStateOf(UserPreferencesRepository.DEFAULT_THEME)
+    private var themeUnregisterCallback: (() -> Unit)? = null
+
     override val lifecycle: Lifecycle
         get() = lifecycleRegistry
 
@@ -67,6 +72,12 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
         super.onCreate()
         savedStateRegistryController.performRestore(null)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+
+        val userPrefs = UserPreferencesRepository.getInstance(this)
+        currentThemeState.value = userPrefs.getThemePreference()
+        themeUnregisterCallback = userPrefs.registerThemeChangeListener { newTheme ->
+            currentThemeState.value = newTheme
+        }
     }
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
@@ -77,6 +88,7 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         currentEditorInfoState.value = info
+        currentThemeState.value = UserPreferencesRepository.getInstance(this).getThemePreference()
     }
 
     override fun onConfigureWindow(win: Window, isFullscreen: Boolean, isCandidatesOnly: Boolean) {
@@ -110,13 +122,10 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
             setViewTreeSavedStateRegistryOwner(this@AncientKeysIME)
 
             setContent {
-                val userPrefs = androidx.compose.runtime.remember {
-                    com.ancientkeys.keyboard.storage.UserPreferencesRepository.getInstance(this@AncientKeysIME)
-                }
-                val themePref = userPrefs.getThemePreference()
+                val themePref = currentThemeState.value
                 val isDark = when (themePref) {
-                    com.ancientkeys.keyboard.storage.UserPreferencesRepository.THEME_LIGHT -> false
-                    com.ancientkeys.keyboard.storage.UserPreferencesRepository.THEME_DARK -> true
+                    UserPreferencesRepository.THEME_LIGHT -> false
+                    UserPreferencesRepository.THEME_DARK -> true
                     else -> androidx.compose.foundation.isSystemInDarkTheme()
                 }
 
@@ -177,6 +186,8 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
     }
 
     override fun onDestroy() {
+        themeUnregisterCallback?.invoke()
+        themeUnregisterCallback = null
         super.onDestroy()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
         appViewModelStore.clear()

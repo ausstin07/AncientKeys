@@ -2,10 +2,13 @@ package com.ancientkeys.keyboard.ime.ui
 
 import android.view.HapticFeedbackConstants
 import android.view.inputmethod.EditorInfo
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import com.ancientkeys.keyboard.ui.theme.AncientKeysDesignTokens
+import com.ancientkeys.keyboard.ui.theme.ancientKeysColors
 import com.ancientkeys.keyboard.ime.data.LongPressAlternativesData
 import com.ancientkeys.keyboard.ime.phonetic.EasyPhoneticProvider
 import com.ancientkeys.keyboard.ime.phonetic.PhoneticCandidate
@@ -131,7 +134,7 @@ fun ImeKeyboardLayout(
         modifier = modifier
             .fillMaxWidth()
             .height(totalSurfaceHeight),
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.ancientKeysColors.keyboardBackground,
         tonalElevation = 6.dp
     ) {
         Box(
@@ -303,21 +306,24 @@ private fun MultiModeKeyboardContent(
                     },
                     modifier = Modifier
                         .height(if (isLandscape) 28.dp else 32.dp)
-                        .widthIn(max = 120.dp),
-                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                        .widthIn(max = 125.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (keyboardMode == KeyboardMode.HISTORICAL)
-                            MaterialTheme.colorScheme.primaryContainer
-                        else MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.ancientKeysColors.keyPrimaryActionBackground
+                        else MaterialTheme.ancientKeysColors.chipBackground,
                         contentColor = if (keyboardMode == KeyboardMode.HISTORICAL)
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        else MaterialTheme.colorScheme.onSurfaceVariant
+                            MaterialTheme.ancientKeysColors.keyPrimaryActionText
+                        else MaterialTheme.ancientKeysColors.chipText
                     )
                 ) {
                     Text(
-                        text = "${ImeDimensionsHelper.getCompactScriptName(currentScript)} ▾",
+                        text = "🏛️ ${ImeDimensionsHelper.getCompactScriptName(currentScript)} ▾",
                         fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -371,10 +377,14 @@ private fun MultiModeKeyboardContent(
                             onKeyboardModeChange(KeyboardMode.EASY_PHONETIC)
                         },
                         label = { Text("Easy", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
                         modifier = Modifier.height(28.dp),
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                            selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
+                            containerColor = MaterialTheme.ancientKeysColors.chipBackground,
+                            labelColor = MaterialTheme.ancientKeysColors.chipText
                         )
                     )
                 }
@@ -387,10 +397,14 @@ private fun MultiModeKeyboardContent(
                         onKeyboardModeChange(KeyboardMode.ENGLISH_QWERTY)
                     },
                     label = { Text("ABC", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
                     modifier = Modifier.height(28.dp),
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                        selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
+                        containerColor = MaterialTheme.ancientKeysColors.chipBackground,
+                        labelColor = MaterialTheme.ancientKeysColors.chipText
                     )
                 )
 
@@ -402,10 +416,14 @@ private fun MultiModeKeyboardContent(
                         onKeyboardModeChange(KeyboardMode.HISTORICAL)
                     },
                     label = { Text("Native", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
                     modifier = Modifier.height(28.dp),
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                        selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
+                        containerColor = MaterialTheme.ancientKeysColors.chipBackground,
+                        labelColor = MaterialTheme.ancientKeysColors.chipText
                     )
                 )
 
@@ -417,10 +435,14 @@ private fun MultiModeKeyboardContent(
                         onKeyboardModeChange(KeyboardMode.NUMBERS_SYMBOLS)
                     },
                     label = { Text("?123", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
                     modifier = Modifier.height(28.dp),
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                        selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
+                        containerColor = MaterialTheme.ancientKeysColors.chipBackground,
+                        labelColor = MaterialTheme.ancientKeysColors.chipText
                     )
                 )
 
@@ -433,10 +455,14 @@ private fun MultiModeKeyboardContent(
                             onKeyboardModeChange(KeyboardMode.ROMANIZED)
                         },
                         label = { Text("Rom", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
                         modifier = Modifier.height(28.dp),
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                            selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
+                            containerColor = MaterialTheme.ancientKeysColors.chipBackground,
+                            labelColor = MaterialTheme.ancientKeysColors.chipText
                         )
                     )
                 }
@@ -451,9 +477,15 @@ private fun MultiModeKeyboardContent(
                 modifier = Modifier
                     .height(if (isLandscape) 28.dp else 30.dp)
                     .widthIn(min = 36.dp),
+                shape = RoundedCornerShape(8.dp),
+                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = MaterialTheme.ancientKeysColors.chipBackground,
+                    contentColor = MaterialTheme.ancientKeysColors.chipText
+                ),
                 contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
             ) {
-                Text("🌐 Switch", fontSize = 10.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                Text("🌐 Switch", fontSize = 10.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
             }
         }
 
@@ -475,11 +507,15 @@ private fun MultiModeKeyboardContent(
                         isScholarMode = !isScholarMode
                         userPrefs.setScholarMode(isScholarMode)
                     },
-                    label = { Text(if (isScholarMode) "🎓 Scholar" else "🌱 Beginner", fontSize = 10.sp) },
+                    label = { Text(if (isScholarMode) "🎓 Scholar" else "🌱 Beginner", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
                     modifier = Modifier.height(28.dp),
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                        selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
+                        containerColor = MaterialTheme.ancientKeysColors.chipBackground,
+                        labelColor = MaterialTheme.ancientKeysColors.chipText
                     )
                 )
 
@@ -490,8 +526,16 @@ private fun MultiModeKeyboardContent(
                             triggerHaptic()
                             showFavoritesOnly = !showFavoritesOnly
                         },
-                        label = { Text("★ Favs (${favoriteKeysSet.size})", fontSize = 10.sp) },
-                        modifier = Modifier.height(28.dp)
+                        label = { Text("⭐ Favs (${favoriteKeysSet.size})", fontSize = 10.sp, fontWeight = FontWeight.SemiBold) },
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                        modifier = Modifier.height(28.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                            selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
+                            containerColor = MaterialTheme.ancientKeysColors.chipBackground,
+                            labelColor = MaterialTheme.ancientKeysColors.chipText
+                        )
                     )
                 }
 
@@ -503,8 +547,16 @@ private fun MultiModeKeyboardContent(
                             showFavoritesOnly = false
                             selectedCategoryIndex = index
                         },
-                        label = { Text(catName, fontSize = 10.sp) },
-                        modifier = Modifier.height(28.dp)
+                        label = { Text(catName, fontSize = 10.sp, fontWeight = FontWeight.Medium) },
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                        modifier = Modifier.height(28.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                            selectedLabelColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
+                            containerColor = MaterialTheme.ancientKeysColors.chipBackground,
+                            labelColor = MaterialTheme.ancientKeysColors.chipText
+                        )
                     )
                 }
             }
@@ -609,8 +661,9 @@ private fun MultiModeKeyboardContent(
                                 .fillMaxWidth()
                                 .padding(horizontal = 4.dp, vertical = 2.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                containerColor = MaterialTheme.ancientKeysColors.cardBackground
                             ),
+                            border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Column(modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)) {
@@ -630,20 +683,20 @@ private fun MultiModeKeyboardContent(
                                             text = if (phoneticBuffer.isEmpty()) "Type English (e.g. 'ka', 'kaa', 'ki')..." else phoneticBuffer,
                                             style = MaterialTheme.typography.bodySmall,
                                             fontWeight = if (phoneticBuffer.isEmpty()) FontWeight.Normal else FontWeight.Bold,
-                                            color = if (phoneticBuffer.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = if (phoneticBuffer.isEmpty()) MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.6f) else MaterialTheme.ancientKeysColors.keyText
                                         )
                                         if (primaryConverted.isNotEmpty()) {
                                             Text(
                                                 text = " ➔ ",
                                                 style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.primary
+                                                color = MaterialTheme.ancientKeysColors.glyphAccent
                                             )
                                             Text(
                                                 text = primaryConverted,
                                                 fontFamily = scriptFont,
                                                 fontSize = 20.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.primary
+                                                color = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground
                                             )
                                         }
                                     }
@@ -675,7 +728,10 @@ private fun MultiModeKeyboardContent(
                                                 },
                                                 modifier = Modifier.height(26.dp),
                                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                                                    contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
+                                                )
                                             ) {
                                                 Text("Commit ↵", fontSize = 10.sp)
                                             }
@@ -696,7 +752,7 @@ private fun MultiModeKeyboardContent(
                                         candidates.forEach { cand ->
                                             Surface(
                                                 shape = RoundedCornerShape(4.dp),
-                                                color = if (cand.isPrimary) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer,
+                                                color = if (cand.isPrimary) MaterialTheme.ancientKeysColors.keyPrimaryActionBackground else MaterialTheme.ancientKeysColors.chipBackground,
                                                 modifier = Modifier.clickable {
                                                     triggerHaptic()
                                                     onKeyClick(ScriptKey(character = cand.scriptResult, unicodeCodePoint = currentScript.id.uppercase()))
@@ -712,13 +768,13 @@ private fun MultiModeKeyboardContent(
                                                         fontFamily = scriptFont,
                                                         fontSize = 16.sp,
                                                         fontWeight = FontWeight.Bold,
-                                                        color = if (cand.isPrimary) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
+                                                        color = if (cand.isPrimary) MaterialTheme.ancientKeysColors.keyPrimaryActionText else MaterialTheme.ancientKeysColors.chipText
                                                     )
                                                     Spacer(modifier = Modifier.width(3.dp))
                                                     Text(
                                                         text = cand.displayLabel,
                                                         fontSize = 10.sp,
-                                                        color = (if (cand.isPrimary) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer).copy(alpha = 0.8f)
+                                                        color = (if (cand.isPrimary) MaterialTheme.ancientKeysColors.keyPrimaryActionText else MaterialTheme.ancientKeysColors.chipText).copy(alpha = 0.8f)
                                                     )
                                                 }
                                             }
@@ -774,8 +830,9 @@ private fun MultiModeKeyboardContent(
                                 .fillMaxWidth()
                                 .padding(horizontal = 4.dp, vertical = 2.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                containerColor = MaterialTheme.ancientKeysColors.cardBackground
                             ),
+                            border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Column(modifier = Modifier.padding(6.dp)) {
@@ -800,20 +857,20 @@ private fun MultiModeKeyboardContent(
                                             text = if (romanizedBuffer.isEmpty()) "Type Latin (${activeRomanizer?.schemeName ?: "Romanized"})..." else romanizedBuffer,
                                             style = MaterialTheme.typography.bodySmall,
                                             fontWeight = if (romanizedBuffer.isEmpty()) FontWeight.Normal else FontWeight.Bold,
-                                            color = if (romanizedBuffer.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = if (romanizedBuffer.isEmpty()) MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.6f) else MaterialTheme.ancientKeysColors.keyText
                                         )
                                         if (transliterated.isNotEmpty()) {
                                             Text(
                                                 text = " ➔ ",
                                                 style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.primary
+                                                color = MaterialTheme.ancientKeysColors.glyphAccent
                                             )
                                             Text(
                                                 text = transliterated,
                                                 fontFamily = scriptFont,
                                                 fontSize = 20.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.primary
+                                                color = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground
                                             )
                                         }
                                     }
@@ -828,7 +885,8 @@ private fun MultiModeKeyboardContent(
                                             modifier = Modifier.height(28.dp),
                                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                                             colors = ButtonDefaults.buttonColors(
-                                                containerColor = MaterialTheme.colorScheme.primary
+                                                containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                                                contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
                                             )
                                         ) {
                                             Text("Commit ↵", fontSize = 11.sp)
@@ -852,7 +910,8 @@ private fun MultiModeKeyboardContent(
                                             previews.forEach { preview ->
                                                 Surface(
                                                     shape = RoundedCornerShape(4.dp),
-                                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                                    color = MaterialTheme.ancientKeysColors.chipBackground,
+                                                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.5f)),
                                                     modifier = Modifier.clickable {
                                                         triggerHaptic()
                                                         onKeyClick(ScriptKey(character = preview.scriptResult, unicodeCodePoint = currentScript.id.uppercase()))
@@ -868,13 +927,13 @@ private fun MultiModeKeyboardContent(
                                                             fontFamily = scriptFont,
                                                             fontSize = 16.sp,
                                                             fontWeight = FontWeight.Bold,
-                                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                            color = MaterialTheme.ancientKeysColors.chipText
                                                         )
                                                         Spacer(modifier = Modifier.width(3.dp))
                                                         Text(
                                                             text = preview.latinInput,
                                                             fontSize = 10.sp,
-                                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                                            color = MaterialTheme.ancientKeysColors.chipText.copy(alpha = 0.8f)
                                                         )
                                                     }
                                                 }
@@ -929,7 +988,8 @@ private fun MultiModeKeyboardContent(
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 8.dp),
                     shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surface,
+                    color = MaterialTheme.ancientKeysColors.cardBackground,
+                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder),
                     shadowElevation = 8.dp,
                     tonalElevation = 8.dp
                 ) {
@@ -945,7 +1005,7 @@ private fun MultiModeKeyboardContent(
                                 text = "Alternatives for \"$longPressPopupKey\"",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground
                             )
                             Text(
                                 text = "✕ Dismiss",
@@ -975,10 +1035,11 @@ private fun MultiModeKeyboardContent(
                                         longPressPopupKey = null
                                     },
                                     modifier = Modifier.height(44.dp),
-                                    shape = RoundedCornerShape(8.dp),
+                                    shape = AncientKeysDesignTokens.Shapes.keyShape,
+                                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                        containerColor = MaterialTheme.ancientKeysColors.keyBackground,
+                                        contentColor = MaterialTheme.ancientKeysColors.keyText
                                     ),
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                                 ) {
@@ -1008,8 +1069,10 @@ private fun MultiModeKeyboardContent(
         ) {
             // Quick Mode Toggle / Mode Indicator
             Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = AncientKeysDesignTokens.Shapes.keyShape,
+                color = MaterialTheme.ancientKeysColors.keyActionBackground,
+                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                shadowElevation = 1.dp,
                 modifier = Modifier
                     .fillMaxHeight()
                     .widthIn(min = 38.dp)
@@ -1040,7 +1103,7 @@ private fun MultiModeKeyboardContent(
                         },
                         fontSize = if (isLandscape) 10.sp else 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = MaterialTheme.ancientKeysColors.keyActionText,
                         maxLines = 1
                     )
                 }
@@ -1057,11 +1120,13 @@ private fun MultiModeKeyboardContent(
                         .fillMaxHeight()
                         .widthIn(min = 34.dp, max = 40.dp)
                         .semantics { contentDescription = "Comma" },
-                    shape = RoundedCornerShape(8.dp),
+                    shape = AncientKeysDesignTokens.Shapes.keyShape,
+                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
                     contentPadding = PaddingValues(0.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        containerColor = MaterialTheme.ancientKeysColors.keyActionBackground,
+                        contentColor = MaterialTheme.ancientKeysColors.keyActionText
                     )
                 ) {
                     Text(",", fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -1092,10 +1157,12 @@ private fun MultiModeKeyboardContent(
                     .fillMaxHeight()
                     .widthIn(min = ImeDimensionsHelper.MIN_SPACE_KEY_WIDTH_DP.dp)
                     .semantics { contentDescription = "Space" },
-                shape = RoundedCornerShape(8.dp),
+                shape = AncientKeysDesignTokens.Shapes.keyShape,
+                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = MaterialTheme.ancientKeysColors.keyBackground,
+                    contentColor = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.75f)
                 )
             ) {
                 Text(
@@ -1103,8 +1170,8 @@ private fun MultiModeKeyboardContent(
                         KeyboardMode.HISTORICAL -> "${ImeDimensionsHelper.getCompactScriptName(currentScript)} Space"
                         KeyboardMode.EASY_PHONETIC -> "${ImeDimensionsHelper.getCompactScriptName(currentScript)} Space"
                         KeyboardMode.ENGLISH_QWERTY -> "English"
-                        KeyboardMode.NUMBERS_SYMBOLS -> "Space"
-                        KeyboardMode.ROMANIZED -> "Space"
+                        KeyboardMode.NUMBERS_SYMBOLS -> "space"
+                        KeyboardMode.ROMANIZED -> "space"
                     },
                     fontSize = if (isLandscape) 11.sp else 12.sp,
                     fontWeight = FontWeight.Medium,
@@ -1124,11 +1191,13 @@ private fun MultiModeKeyboardContent(
                         .fillMaxHeight()
                         .widthIn(min = 34.dp, max = 40.dp)
                         .semantics { contentDescription = "Period" },
-                    shape = RoundedCornerShape(8.dp),
+                    shape = AncientKeysDesignTokens.Shapes.keyShape,
+                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
                     contentPadding = PaddingValues(0.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        containerColor = MaterialTheme.ancientKeysColors.keyActionBackground,
+                        contentColor = MaterialTheme.ancientKeysColors.keyActionText
                     )
                 ) {
                     Text(".", fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -1152,16 +1221,18 @@ private fun MultiModeKeyboardContent(
                     .fillMaxHeight()
                     .widthIn(min = ImeDimensionsHelper.MIN_BACKSPACE_KEY_WIDTH_DP.dp)
                     .semantics { contentDescription = "Backspace" },
-                shape = RoundedCornerShape(8.dp),
+                shape = AncientKeysDesignTokens.Shapes.keyShape,
+                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    containerColor = MaterialTheme.ancientKeysColors.keyActionBackground,
+                    contentColor = MaterialTheme.ancientKeysColors.keyActionText
                 )
             ) {
-                Text("⌫", fontSize = if (isLandscape) 15.sp else 18.sp, fontWeight = FontWeight.Bold)
+                Text("⌫", fontSize = if (isLandscape) 14.sp else 16.sp, fontWeight = FontWeight.Bold)
             }
 
-            // Enter (↵)
+            // Enter (↵ / Enter ↵) - Prominent Sage Primary Action Key
             Button(
                 onClick = {
                     triggerHaptic()
@@ -1185,13 +1256,19 @@ private fun MultiModeKeyboardContent(
                     .fillMaxHeight()
                     .widthIn(min = ImeDimensionsHelper.MIN_ENTER_KEY_WIDTH_DP.dp)
                     .semantics { contentDescription = "Enter" },
-                shape = RoundedCornerShape(8.dp),
+                shape = AncientKeysDesignTokens.Shapes.keyShape,
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                    containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                    contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
                 )
             ) {
-                Text("↵", fontSize = if (isLandscape) 15.sp else 18.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (isLandscape) "↵" else "Enter ↵",
+                    fontSize = if (isLandscape) 14.sp else 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
             }
         }
     }
@@ -1281,18 +1358,20 @@ private fun EnglishQwertyKeyboard(
                     .fillMaxHeight()
                     .padding(vertical = 1.dp)
                     .semantics { contentDescription = shiftDesc },
-                shape = RoundedCornerShape(6.dp),
+                shape = AncientKeysDesignTokens.Shapes.actionKeyShape,
+                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = AncientKeysDesignTokens.Elevation.keyElevation),
                 contentPadding = PaddingValues(0.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = when (shiftState) {
-                        ShiftState.OFF -> MaterialTheme.colorScheme.surfaceVariant
-                        ShiftState.ON_ONCE -> MaterialTheme.colorScheme.primaryContainer
-                        ShiftState.CAPS_LOCK -> MaterialTheme.colorScheme.primary
+                        ShiftState.OFF -> MaterialTheme.ancientKeysColors.keyActionBackground
+                        ShiftState.ON_ONCE -> MaterialTheme.ancientKeysColors.keyPrimaryActionBackground.copy(alpha = 0.85f)
+                        ShiftState.CAPS_LOCK -> MaterialTheme.ancientKeysColors.keyPrimaryActionBackground
                     },
                     contentColor = when (shiftState) {
-                        ShiftState.OFF -> MaterialTheme.colorScheme.onSurfaceVariant
-                        ShiftState.ON_ONCE -> MaterialTheme.colorScheme.onPrimaryContainer
-                        ShiftState.CAPS_LOCK -> MaterialTheme.colorScheme.onPrimary
+                        ShiftState.OFF -> MaterialTheme.ancientKeysColors.keyActionText
+                        ShiftState.ON_ONCE -> MaterialTheme.ancientKeysColors.keyPrimaryActionText
+                        ShiftState.CAPS_LOCK -> MaterialTheme.ancientKeysColors.keyPrimaryActionText
                     }
                 )
             ) {
@@ -1327,11 +1406,13 @@ private fun EnglishQwertyKeyboard(
                     .fillMaxHeight()
                     .padding(vertical = 1.dp)
                     .semantics { contentDescription = "Backspace" },
-                shape = RoundedCornerShape(6.dp),
+                shape = AncientKeysDesignTokens.Shapes.actionKeyShape,
+                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = AncientKeysDesignTokens.Elevation.keyElevation),
                 contentPadding = PaddingValues(0.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    containerColor = MaterialTheme.ancientKeysColors.keyActionBackground,
+                    contentColor = MaterialTheme.ancientKeysColors.keyActionText
                 )
             ) {
                 Text("⌫", fontSize = if (isLandscape) 14.sp else 16.sp, fontWeight = FontWeight.Bold)
@@ -1437,11 +1518,13 @@ private fun NumbersSymbolsKeyboard(
                     .weight(1.8f)
                     .fillMaxHeight()
                     .padding(vertical = 1.dp),
-                shape = RoundedCornerShape(6.dp),
+                shape = AncientKeysDesignTokens.Shapes.actionKeyShape,
+                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = AncientKeysDesignTokens.Elevation.keyElevation),
                 contentPadding = PaddingValues(0.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    containerColor = MaterialTheme.ancientKeysColors.keyActionBackground,
+                    contentColor = MaterialTheme.ancientKeysColors.keyActionText
                 )
             ) {
                 Text("⌫", fontSize = if (isLandscape) 14.sp else 16.sp, fontWeight = FontWeight.Bold)
@@ -1472,13 +1555,14 @@ private fun QwertyKey(
                 onLongClick = if (hasAlts && onLongClick != null) onLongClick else null
             )
             .semantics { contentDescription = label },
-        shape = RoundedCornerShape(6.dp),
+        shape = AncientKeysDesignTokens.Shapes.keyShape,
+        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
         colors = CardDefaults.cardColors(
             containerColor = if (isAccent)
-                MaterialTheme.colorScheme.surfaceVariant
-            else MaterialTheme.colorScheme.surface
+                MaterialTheme.ancientKeysColors.keyActionBackground
+            else MaterialTheme.ancientKeysColors.keyBackground
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = AncientKeysDesignTokens.Elevation.keyElevation)
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -1488,7 +1572,7 @@ private fun QwertyKey(
                 text = label,
                 fontSize = if (isLandscape) 14.sp else 17.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.ancientKeysColors.keyText
             )
             if (hasAlts) {
                 Box(
@@ -1497,7 +1581,12 @@ private fun QwertyKey(
                         .padding(top = 1.dp, end = 2.dp),
                     contentAlignment = Alignment.TopEnd
                 ) {
-                    Text("·", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        "·",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.ancientKeysColors.glyphAccent
+                    )
                 }
             }
         }
@@ -1525,11 +1614,13 @@ private fun ImeKeyItem(
             .height(itemHeight)
             .clickable(onClick = onClick)
             .semantics { contentDescription = accessibleDesc },
-        shape = RoundedCornerShape(6.dp),
+        shape = AncientKeysDesignTokens.Shapes.keyShape,
+        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = MaterialTheme.ancientKeysColors.keyBackground,
+            contentColor = MaterialTheme.ancientKeysColors.keyText
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = AncientKeysDesignTokens.Elevation.keyElevation)
     ) {
         Column(
             modifier = Modifier
@@ -1541,9 +1632,9 @@ private fun ImeKeyItem(
             Text(
                 text = displayGlyph,
                 fontFamily = fontFamily,
-                fontSize = if (isLandscape) 17.sp else 20.sp,
+                fontSize = if (isLandscape) 18.sp else 21.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.ancientKeysColors.keyText,
                 textAlign = TextAlign.Center
             )
             if (isScholarMode) {
@@ -1551,7 +1642,7 @@ private fun ImeKeyItem(
                     text = key.unicodeCodePoint,
                     fontSize = if (isLandscape) 6.sp else 7.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = MaterialTheme.ancientKeysColors.glyphAccent,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center
@@ -1560,7 +1651,7 @@ private fun ImeKeyItem(
                 Text(
                     text = key.phoneticHint,
                     fontSize = if (isLandscape) 7.sp else 8.sp,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = MaterialTheme.ancientKeysColors.glyphAccent,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center

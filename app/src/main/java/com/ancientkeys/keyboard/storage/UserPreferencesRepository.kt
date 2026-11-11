@@ -161,6 +161,8 @@ class UserPreferencesRepository(private val context: Context? = null) {
         }
     }
 
+    private val themeListeners = mutableListOf<(String) -> Unit>()
+
     fun setThemePreference(theme: String) {
         val safeTheme = when (theme.lowercase().trim()) {
             THEME_SAGE -> THEME_SAGE
@@ -172,13 +174,17 @@ class UserPreferencesRepository(private val context: Context? = null) {
         }
         prefs?.edit()?.putString(KEY_THEME, safeTheme)?.apply()
         memoryThemePreference = safeTheme
+        themeListeners.forEach { it(safeTheme) }
     }
 
     fun reloadTheme(): String {
-        return getThemePreference()
+        val current = getThemePreference()
+        themeListeners.forEach { it(current) }
+        return current
     }
 
     fun registerThemeChangeListener(listener: (String) -> Unit): () -> Unit {
+        themeListeners.add(listener)
         val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key == KEY_THEME) {
                 listener(getThemePreference())
@@ -186,6 +192,7 @@ class UserPreferencesRepository(private val context: Context? = null) {
         }
         prefs?.registerOnSharedPreferenceChangeListener(prefListener)
         return {
+            themeListeners.remove(listener)
             prefs?.unregisterOnSharedPreferenceChangeListener(prefListener)
         }
     }
