@@ -45,7 +45,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -280,27 +283,60 @@ private fun WritingSystemsTab(
                 Column(modifier = Modifier.padding(14.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = profile.name,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.ancientKeysColors.keyText,
-                            modifier = Modifier.weight(1f).padding(end = 8.dp)
-                        )
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.ancientKeysColors.chipSelectedBackground
+                            modifier = Modifier.size(36.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.ancientKeysColors.chipBackground,
+                            border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder.copy(alpha = 0.6f))
                         ) {
-                            Text(
-                                text = profile.systemType,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.ancientKeysColors.chipSelectedText,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                            )
+                            Box(contentAlignment = Alignment.Center) {
+                                val badge = getScriptRepresentativeBadge(profile.scriptId)
+                                Text(
+                                    text = badge,
+                                    fontFamily = scriptFont,
+                                    fontSize = if (profile.scriptId.equals("egyptian", ignoreCase = true)) 18.sp else 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.ancientKeysColors.glyphAccent,
+                                    textAlign = TextAlign.Center,
+                                    style = TextStyle(
+                                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                        lineHeightStyle = LineHeightStyle(
+                                            alignment = LineHeightStyle.Alignment.Center,
+                                            trim = LineHeightStyle.Trim.Both
+                                        )
+                                    )
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = profile.name,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.ancientKeysColors.keyText,
+                                    modifier = Modifier.weight(1f).padding(end = 6.dp)
+                                )
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.ancientKeysColors.chipSelectedBackground
+                                ) {
+                                    Text(
+                                        text = profile.systemType,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.ancientKeysColors.chipSelectedText,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -515,13 +551,44 @@ private fun PracticeTaskItem(task: TypingPracticeTask) {
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(10.dp)) {
-                        Text(
-                            text = "Target Script: ${task.targetScriptText}",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 17.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        val taskScriptId = getScriptIdForTaskId(task.id)
+                        val context = LocalContext.current
+                        val taskFont = remember(taskScriptId) { HistoricalFontProvider.getFontFamily(context, taskScriptId) }
+                        val taskFontSize = if (taskScriptId.equals("egyptian", ignoreCase = true)) 20.sp else 18.sp
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Target Script:",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.ancientKeysColors.keyText
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = MaterialTheme.ancientKeysColors.cardBackground,
+                                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder.copy(alpha = 0.7f))
+                            ) {
+                                Text(
+                                    text = task.targetScriptText,
+                                    fontFamily = taskFont,
+                                    fontSize = taskFontSize,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    style = TextStyle(
+                                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                        lineHeightStyle = LineHeightStyle(
+                                            alignment = LineHeightStyle.Alignment.Center,
+                                            trim = LineHeightStyle.Trim.Both
+                                        )
+                                    )
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = task.explanation,
                             fontSize = 11.sp,
@@ -544,6 +611,8 @@ private fun ScriptProfileDetailView(
     onBack: () -> Unit
 ) {
     val scrollState = rememberScrollState()
+    val context = LocalContext.current
+    val scriptFont = remember(profile.scriptId) { HistoricalFontProvider.getFontFamily(context, profile.scriptId) }
 
     Column(
         modifier = Modifier
@@ -552,14 +621,65 @@ private fun ScriptProfileDetailView(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Alternative names
-        if (profile.alternativeNames.isNotEmpty()) {
-            Text(
-                text = "Also known as: ${profile.alternativeNames.joinToString(", ")}",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.primary
-            )
+        // Script Hero Header Tile with centered glyph badge
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            color = MaterialTheme.ancientKeysColors.cardBackground,
+            border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder)
+        ) {
+            Row(
+                modifier = Modifier.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    modifier = Modifier.size(54.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.ancientKeysColors.chipBackground,
+                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder.copy(alpha = 0.7f))
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = getScriptRepresentativeBadge(profile.scriptId),
+                            fontFamily = scriptFont,
+                            fontSize = if (profile.scriptId.equals("egyptian", ignoreCase = true)) 26.sp else 30.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.ancientKeysColors.glyphAccent,
+                            textAlign = TextAlign.Center,
+                            style = TextStyle(
+                                platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                lineHeightStyle = LineHeightStyle(
+                                    alignment = LineHeightStyle.Alignment.Center,
+                                    trim = LineHeightStyle.Trim.Both
+                                )
+                            )
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = profile.name,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.ancientKeysColors.keyText
+                    )
+                    Text(
+                        text = "${profile.systemType} • ${profile.writingDirection}",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.ancientKeysColors.chipText
+                    )
+                    if (profile.alternativeNames.isNotEmpty()) {
+                        Text(
+                            text = "A.k.a. ${profile.alternativeNames.joinToString(", ")}",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
         }
 
         // Historical Metadata Card
@@ -705,5 +825,29 @@ private fun ArticleDetailView(
         ) {
             Text("← Back to Foundations", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         }
+    }
+}
+
+private fun getScriptRepresentativeBadge(scriptId: String): String {
+    return when (scriptId.lowercase().trim()) {
+        "greek" -> "Ω"
+        "egyptian", "egyptian_hieroglyphs" -> "𓀀"
+        "brahmi" -> "𑀅"
+        "kharosthi" -> "𐨀"
+        "phoenician" -> "𐤀"
+        "runic", "elder_futhark" -> "ᚱ"
+        else -> "📜"
+    }
+}
+
+private fun getScriptIdForTaskId(taskId: String): String {
+    return when {
+        taskId.startsWith("eg_") -> "egyptian"
+        taskId.startsWith("gr_") -> "greek"
+        taskId.startsWith("br_") -> "brahmi"
+        taskId.startsWith("kh_") -> "kharosthi"
+        taskId.startsWith("ph_") -> "phoenician"
+        taskId.startsWith("ru_") -> "runic"
+        else -> ""
     }
 }

@@ -39,6 +39,12 @@ object HistoricalFontProvider {
         val cleanId = scriptId.lowercase().trim()
         fontFamilyCache[cleanId]?.let { return it }
 
+        if (cleanId == "greek" || cleanId == "ancient_greek") {
+            val family = FontFamily.Serif
+            fontFamilyCache[cleanId] = family
+            return family
+        }
+
         val path = getAssetPathForScript(cleanId) ?: return FontFamily.Default
 
         return try {
@@ -73,6 +79,8 @@ object HistoricalFontProvider {
                         } catch (_: Throwable) {
                             null
                         }
+                    } else if (cleanId == "greek" || cleanId == "ancient_greek") {
+                        Typeface.SERIF
                     } else null
                 }
                 if (typeface != null) {

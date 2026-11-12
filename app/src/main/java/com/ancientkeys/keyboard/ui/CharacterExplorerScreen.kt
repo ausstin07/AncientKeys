@@ -67,8 +67,11 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
@@ -277,7 +280,31 @@ fun CharacterExplorerScreen(
                             modifier = Modifier.weight(1f),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = getScriptIcon(currentScript.id), fontSize = 20.sp)
+                            Surface(
+                                modifier = Modifier.size(36.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.ancientKeysColors.cardBackground,
+                                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.5f))
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    val badge = getScriptRepresentativeBadge(currentScript.id)
+                                    Text(
+                                        text = badge,
+                                        fontFamily = scriptFont,
+                                        fontSize = if (currentScript.id.equals("egyptian", ignoreCase = true)) 18.sp else 20.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                                        textAlign = TextAlign.Center,
+                                        style = TextStyle(
+                                            platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                            lineHeightStyle = LineHeightStyle(
+                                                alignment = LineHeightStyle.Alignment.Center,
+                                                trim = LineHeightStyle.Trim.Both
+                                            )
+                                        )
+                                    )
+                                }
+                            }
                             Spacer(modifier = Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -330,7 +357,32 @@ fun CharacterExplorerScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text(text = getScriptIcon(candidateScript.id), fontSize = 16.sp)
+                                    Surface(
+                                        modifier = Modifier.size(28.dp),
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = MaterialTheme.ancientKeysColors.cardBackground,
+                                        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.4f))
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            val candFont = HistoricalFontProvider.getFontFamily(LocalContext.current, candidateScript.id)
+                                            val candBadge = getScriptRepresentativeBadge(candidateScript.id)
+                                            Text(
+                                                text = candBadge,
+                                                fontFamily = candFont,
+                                                fontSize = if (candidateScript.id.equals("egyptian", ignoreCase = true)) 14.sp else 16.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (candidateScript.id == currentScript.id) MaterialTheme.ancientKeysColors.keyPrimaryActionBackground else MaterialTheme.ancientKeysColors.keyText,
+                                                textAlign = TextAlign.Center,
+                                                style = TextStyle(
+                                                    platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                                    lineHeightStyle = LineHeightStyle(
+                                                        alignment = LineHeightStyle.Alignment.Center,
+                                                        trim = LineHeightStyle.Trim.Both
+                                                    )
+                                                )
+                                            )
+                                        }
+                                    }
                                     Text(
                                         text = candidateScript.name,
                                         fontWeight = if (candidateScript.id == currentScript.id) FontWeight.Bold else FontWeight.Normal,
@@ -579,7 +631,7 @@ private fun ExplorerCharacterTile(
     AncientKeysCard(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 76.dp)
+            .heightIn(min = 80.dp)
             .semantics {
                 role = Role.Button
                 contentDescription = accessibleDesc
@@ -590,44 +642,13 @@ private fun ExplorerCharacterTile(
         elevation = if (isSelected) 2.dp else 1.dp,
         onClick = onClick
     ) {
-        Box(modifier = Modifier.fillMaxWidth().heightIn(min = 76.dp)) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 6.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = displayGlyph,
-                    fontFamily = scriptFont,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.ancientKeysColors.keyText,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                val hintText = when {
-                    key.transliteration.isNotBlank() && key.transliteration != "Unavailable" -> key.transliteration
-                    key.phoneticHint.isNotBlank() -> key.phoneticHint.split(" ").firstOrNull() ?: key.phoneticHint
-                    else -> key.unicodeCodePoint
-                }
-                Text(
-                    text = hintText,
-                    fontSize = 10.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (isSelected) MaterialTheme.ancientKeysColors.glyphAccent else MaterialTheme.ancientKeysColors.chipText,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
-            }
-
+        Box(modifier = Modifier.fillMaxWidth().heightIn(min = 80.dp)) {
+            // Badges in corners
             if (!isRenderable) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(3.dp),
+                        .padding(start = 4.dp, top = 4.dp),
                     shape = RoundedCornerShape(3.dp),
                     color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f)
                 ) {
@@ -645,10 +666,66 @@ private fun ExplorerCharacterTile(
                 Text(
                     text = "★",
                     color = MaterialTheme.ancientKeysColors.glyphAccent,
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(3.dp)
+                        .padding(end = 4.dp, top = 4.dp)
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                // Centered glyph container with script-aware font sizing & balanced line metrics
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .padding(horizontal = 2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val tileFontSize = when (scriptId.lowercase().trim()) {
+                        "egyptian", "egyptian_hieroglyphs" -> 20.sp
+                        else -> 22.sp
+                    }
+                    Text(
+                        text = displayGlyph,
+                        fontFamily = scriptFont,
+                        fontSize = tileFontSize,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.ancientKeysColors.keyText,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        style = TextStyle(
+                            platformStyle = PlatformTextStyle(includeFontPadding = false),
+                            lineHeightStyle = LineHeightStyle(
+                                alignment = LineHeightStyle.Alignment.Center,
+                                trim = LineHeightStyle.Trim.Both
+                            )
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                val hintText = when {
+                    key.transliteration.isNotBlank() && key.transliteration != "Unavailable" -> key.transliteration
+                    key.phoneticHint.isNotBlank() -> key.phoneticHint.split(" ").firstOrNull() ?: key.phoneticHint
+                    else -> key.unicodeCodePoint
+                }
+                Text(
+                    text = hintText,
+                    fontSize = 10.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = if (isSelected) MaterialTheme.ancientKeysColors.glyphAccent else MaterialTheme.ancientKeysColors.chipText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
@@ -693,9 +770,14 @@ private fun CharacterDetailPanel(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Large Preview Glyph Tile
+                // Large Preview Glyph Tile with script-aware font size & balanced metrics
+                val previewFontSize = when (script.id.lowercase().trim()) {
+                    "egyptian", "egyptian_hieroglyphs" -> 28.sp
+                    "greek" -> 30.sp
+                    else -> 32.sp
+                }
                 Surface(
-                    modifier = Modifier.sizeIn(minWidth = 62.dp, minHeight = 62.dp),
+                    modifier = Modifier.size(64.dp),
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.ancientKeysColors.chipBackground,
                     border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f))
@@ -707,10 +789,17 @@ private fun CharacterDetailPanel(
                         Text(
                             text = displayGlyph,
                             fontFamily = scriptFont,
-                            fontSize = 32.sp,
+                            fontSize = previewFontSize,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.ancientKeysColors.keyText,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            style = TextStyle(
+                                platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                lineHeightStyle = LineHeightStyle(
+                                    alignment = LineHeightStyle.Alignment.Center,
+                                    trim = LineHeightStyle.Trim.Both
+                                )
+                            )
                         )
                     }
                 }
@@ -901,8 +990,13 @@ private fun FullCharacterDetailSheet(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            val sheetFontSize = when (script.id.lowercase().trim()) {
+                "egyptian", "egyptian_hieroglyphs" -> 34.sp
+                "greek" -> 38.sp
+                else -> 40.sp
+            }
             Surface(
-                modifier = Modifier.sizeIn(minWidth = 80.dp, minHeight = 80.dp),
+                modifier = Modifier.size(84.dp),
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.ancientKeysColors.chipBackground,
                 border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder)
@@ -914,10 +1008,17 @@ private fun FullCharacterDetailSheet(
                     Text(
                         text = displayGlyph,
                         fontFamily = scriptFont,
-                        fontSize = 40.sp,
+                        fontSize = sheetFontSize,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.ancientKeysColors.keyText,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        style = TextStyle(
+                            platformStyle = PlatformTextStyle(includeFontPadding = false),
+                            lineHeightStyle = LineHeightStyle(
+                                alignment = LineHeightStyle.Alignment.Center,
+                                trim = LineHeightStyle.Trim.Both
+                            )
+                        )
                     )
                 }
             }
@@ -1046,14 +1147,16 @@ private fun DetailSpecRow(label: String, value: String) {
     }
 }
 
-private fun getScriptIcon(scriptId: String): String {
+private fun getScriptRepresentativeBadge(scriptId: String): String {
     return when (scriptId.lowercase().trim()) {
-        "greek" -> "🏛️"
-        "egyptian" -> "☥"
+        "greek" -> "Ω"
+        "egyptian", "egyptian_hieroglyphs" -> "𓀀"
         "brahmi" -> "𑀅"
         "kharosthi" -> "𐨀"
         "phoenician" -> "𐤀"
-        "runic" -> "ᚱ"
+        "runic", "elder_futhark" -> "ᚱ"
         else -> "📜"
     }
 }
+
+private fun getScriptIcon(scriptId: String): String = getScriptRepresentativeBadge(scriptId)
