@@ -41,6 +41,7 @@ object RepeatBackspaceHelper {
     const val REPEAT_INTERVAL_MS = 50L
     const val ACCELERATED_INTERVAL_MS = 35L
     const val ACCELERATION_THRESHOLD = 15 // after 15 repeats (~750ms), speed up to 35ms
+    const val HAPTIC_PULSE_CADENCE = 3    // Pulse haptic on initial down, then every 3rd repeat (~105-150ms) to prevent vibrator thrashing
 
     /**
      * Computes the delay before the next deletion pulse based on repeat count.
@@ -80,17 +81,19 @@ object RepeatBackspaceHelper {
 fun RepeatKeyButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onRepeatClick: (() -> Unit)? = null,
     enabled: Boolean = true,
     shape: Shape = AncientKeysDesignTokens.Shapes.actionKeyShape,
     containerColor: Color = MaterialTheme.ancientKeysColors.keyActionBackground,
     contentColor: Color = MaterialTheme.ancientKeysColors.keyActionText,
     border: BorderStroke? = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
-    elevation: Dp = AncientKeysDesignTokens.Elevation.keyElevation,
+    elevation: Dp = AncientKeysDesignTokens.Elevation.flat,
     contentDescription: String = "Backspace",
     onHaptic: () -> Unit = {},
     content: @Composable () -> Unit
 ) {
     val currentOnClick by rememberUpdatedState(onClick)
+    val currentOnRepeatClick by rememberUpdatedState(onRepeatClick ?: onClick)
     val currentOnHaptic by rememberUpdatedState(onHaptic)
     var isPressed by remember { mutableStateOf(false) }
 
@@ -114,9 +117,11 @@ fun RepeatKeyButton(
                             delay(RepeatBackspaceHelper.INITIAL_DELAY_MS)
                             var count = 0
                             while (isActive) {
-                                currentOnHaptic()
-                                currentOnClick()
                                 count++
+                                if (count % RepeatBackspaceHelper.HAPTIC_PULSE_CADENCE == 0) {
+                                    currentOnHaptic()
+                                }
+                                currentOnRepeatClick()
                                 val delayMs = RepeatBackspaceHelper.computeDelay(count)
                                 delay(delayMs)
                             }
@@ -131,10 +136,10 @@ fun RepeatKeyButton(
                 }
             },
         shape = shape,
-        color = if (isPressed) containerColor.copy(alpha = 0.8f) else containerColor,
+        color = if (isPressed) MaterialTheme.ancientKeysColors.keyPrimaryActionBackground.copy(alpha = 0.25f) else containerColor,
         contentColor = contentColor,
-        border = border,
-        shadowElevation = if (isPressed) 0.dp else elevation
+        border = if (isPressed) BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyPrimaryActionBackground) else border,
+        shadowElevation = AncientKeysDesignTokens.Elevation.flat
     ) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
             content()

@@ -7,6 +7,16 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.ancientkeys.keyboard.ui.theme.AncientKeysDesignTokens
 import com.ancientkeys.keyboard.ui.theme.ancientKeysColors
 import com.ancientkeys.keyboard.ime.data.LongPressAlternativesData
@@ -95,6 +105,7 @@ fun ImeKeyboardLayout(
     onKeyClick: (ScriptKey) -> Unit,
     onSpaceClick: () -> Unit,
     onBackspaceClick: () -> Unit,
+    onBackspaceRepeat: () -> Unit = onBackspaceClick,
     onEnterClick: () -> Unit,
     onSwitchKeyboardClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -183,6 +194,7 @@ fun ImeKeyboardLayout(
                     onKeyClick = onKeyClick,
                     onSpaceClick = onSpaceClick,
                     onBackspaceClick = onBackspaceClick,
+                    onBackspaceRepeat = onBackspaceRepeat,
                     onEnterClick = onEnterClick,
                     onSwitchKeyboardClick = onSwitchKeyboardClick
                 )
@@ -254,6 +266,7 @@ private fun MultiModeKeyboardContent(
     onKeyClick: (ScriptKey) -> Unit,
     onSpaceClick: () -> Unit,
     onBackspaceClick: () -> Unit,
+    onBackspaceRepeat: () -> Unit = onBackspaceClick,
     onEnterClick: () -> Unit,
     onSwitchKeyboardClick: () -> Unit
 ) {
@@ -305,9 +318,7 @@ private fun MultiModeKeyboardContent(
     }
 
     val currentScript = remember(currentScriptId) {
-        val script = ScriptRegistry.getScriptById(currentScriptId) ?: ScriptRegistry.allScripts.first()
-        userPrefs.recordScriptAccess(script.id)
-        script
+        ScriptRegistry.getScriptById(currentScriptId) ?: ScriptRegistry.allScripts.first()
     }
 
     val activeRomanizer = remember(currentScript.id) {
@@ -798,9 +809,9 @@ private fun MultiModeKeyboardContent(
                                     keySize = keySizePref,
                                     showKeyLabels = showKeyLabelsPref,
                                     onClick = {
-                                        triggerHaptic()
                                         onKeyClick(scriptKey)
-                                    }
+                                    },
+                                    onHaptic = ::triggerHaptic
                                 )
                             }
                         }
@@ -812,24 +823,20 @@ private fun MultiModeKeyboardContent(
                         shiftState = shiftState,
                         isLandscape = isLandscape,
                         onShiftClick = {
-                            triggerHaptic()
                             shiftState = EnglishKeyboardData.nextShiftState(shiftState)
                         },
                         onLetterClick = { letter ->
-                            triggerHaptic()
                             onKeyClick(ScriptKey(character = letter, unicodeCodePoint = "U+%04X".format(letter[0].code)))
                             if (shiftState == ShiftState.ON_ONCE) {
                                 shiftState = ShiftState.OFF
                             }
                         },
                         onLetterLongClick = { letter ->
-                            triggerHaptic()
                             longPressPopupKey = letter
                         },
-                        onBackspaceClick = {
-                            triggerHaptic()
-                            onBackspaceClick()
-                        }
+                        onBackspaceClick = onBackspaceClick,
+                        onBackspaceRepeat = onBackspaceRepeat,
+                        onHaptic = ::triggerHaptic
                     )
                 }
 
@@ -837,13 +844,11 @@ private fun MultiModeKeyboardContent(
                     NumbersSymbolsKeyboard(
                         isLandscape = isLandscape,
                         onSymbolClick = { symbol ->
-                            triggerHaptic()
                             onKeyClick(ScriptKey(character = symbol, unicodeCodePoint = "U+%04X".format(symbol[0].code)))
                         },
-                        onBackspaceClick = {
-                            triggerHaptic()
-                            onBackspaceClick()
-                        }
+                        onBackspaceClick = onBackspaceClick,
+                        onBackspaceRepeat = onBackspaceRepeat,
+                        onHaptic = ::triggerHaptic
                     )
                 }
 
@@ -1002,28 +1007,32 @@ private fun MultiModeKeyboardContent(
                                 shiftState = shiftState,
                                 isLandscape = isLandscape,
                                 onShiftClick = {
-                                    triggerHaptic()
                                     shiftState = EnglishKeyboardData.nextShiftState(shiftState)
                                 },
                                 onLetterClick = { letter ->
-                                    triggerHaptic()
                                     phoneticBuffer += if (shiftState != ShiftState.OFF) letter.uppercase() else letter.lowercase()
                                     if (shiftState == ShiftState.ON_ONCE) {
                                         shiftState = ShiftState.OFF
                                     }
                                 },
                                 onLetterLongClick = { letter ->
-                                    triggerHaptic()
                                     longPressPopupKey = letter
                                 },
                                 onBackspaceClick = {
-                                    triggerHaptic()
                                     if (phoneticBuffer.isNotEmpty()) {
                                         phoneticBuffer = phoneticBuffer.dropLast(1)
                                     } else {
                                         onBackspaceClick()
                                     }
-                                }
+                                },
+                                onBackspaceRepeat = {
+                                    if (phoneticBuffer.isNotEmpty()) {
+                                        phoneticBuffer = phoneticBuffer.dropLast(1)
+                                    } else {
+                                        onBackspaceRepeat()
+                                    }
+                                },
+                                onHaptic = ::triggerHaptic
                             )
                         }
                     }
@@ -1162,28 +1171,32 @@ private fun MultiModeKeyboardContent(
                                 shiftState = shiftState,
                                 isLandscape = isLandscape,
                                 onShiftClick = {
-                                    triggerHaptic()
                                     shiftState = EnglishKeyboardData.nextShiftState(shiftState)
                                 },
                                 onLetterClick = { letter ->
-                                    triggerHaptic()
                                     romanizedBuffer += letter.lowercase()
                                     if (shiftState == ShiftState.ON_ONCE) {
                                         shiftState = ShiftState.OFF
                                     }
                                 },
                                 onLetterLongClick = { letter ->
-                                    triggerHaptic()
                                     longPressPopupKey = letter
                                 },
                                 onBackspaceClick = {
-                                    triggerHaptic()
                                     if (romanizedBuffer.isNotEmpty()) {
                                         romanizedBuffer = romanizedBuffer.dropLast(1)
                                     } else {
                                         onBackspaceClick()
                                     }
-                                }
+                                },
+                                onBackspaceRepeat = {
+                                    if (romanizedBuffer.isNotEmpty()) {
+                                        romanizedBuffer = romanizedBuffer.dropLast(1)
+                                    } else {
+                                        onBackspaceRepeat()
+                                    }
+                                },
+                                onHaptic = ::triggerHaptic
                             )
                         }
                     }
@@ -1294,74 +1307,57 @@ private fun MultiModeKeyboardContent(
                 .fillMaxWidth()
                 .height(bottomRowHeight)
                 .padding(top = 2.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Quick Mode Toggle / Mode Indicator
-            Surface(
-                shape = AncientKeysDesignTokens.Shapes.keyShape,
-                color = MaterialTheme.ancientKeysColors.keyActionBackground,
-                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
-                shadowElevation = 1.dp,
+            ImeActionKey(
+                onClick = {
+                    when (keyboardMode) {
+                        KeyboardMode.ENGLISH_QWERTY -> {
+                            onKeyboardModeChange(KeyboardMode.NUMBERS_SYMBOLS)
+                        }
+                        KeyboardMode.NUMBERS_SYMBOLS -> {
+                            applyEnglishSwitch()
+                        }
+                        KeyboardMode.HISTORICAL -> {
+                            applyEnglishSwitch()
+                        }
+                        KeyboardMode.EASY_PHONETIC, KeyboardMode.ROMANIZED -> {
+                            onKeyboardModeChange(KeyboardMode.NUMBERS_SYMBOLS)
+                        }
+                    }
+                },
+                onHaptic = ::triggerHaptic,
                 modifier = Modifier
                     .fillMaxHeight()
                     .widthIn(min = 40.dp)
-                    .clickable {
-                        triggerHaptic()
-                        when (keyboardMode) {
-                            KeyboardMode.ENGLISH_QWERTY -> {
-                                onKeyboardModeChange(KeyboardMode.NUMBERS_SYMBOLS)
-                            }
-                            KeyboardMode.NUMBERS_SYMBOLS -> {
-                                applyEnglishSwitch()
-                            }
-                            KeyboardMode.HISTORICAL -> {
-                                applyEnglishSwitch()
-                            }
-                            KeyboardMode.EASY_PHONETIC, KeyboardMode.ROMANIZED -> {
-                                onKeyboardModeChange(KeyboardMode.NUMBERS_SYMBOLS)
-                            }
-                        }
-                    }
             ) {
-                Box(
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = when (keyboardMode) {
-                            KeyboardMode.ENGLISH_QWERTY -> "?123"
-                            KeyboardMode.NUMBERS_SYMBOLS -> "ABC"
-                            KeyboardMode.HISTORICAL -> "ABC"
-                            KeyboardMode.EASY_PHONETIC, KeyboardMode.ROMANIZED -> "?123"
-                        },
-                        fontSize = if (isLandscape) 11.sp else 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.ancientKeysColors.keyActionText,
-                        maxLines = 1
-                    )
-                }
+                Text(
+                    text = when (keyboardMode) {
+                        KeyboardMode.ENGLISH_QWERTY -> "?123"
+                        KeyboardMode.NUMBERS_SYMBOLS -> "ABC"
+                        KeyboardMode.HISTORICAL -> "ABC"
+                        KeyboardMode.EASY_PHONETIC, KeyboardMode.ROMANIZED -> "?123"
+                    },
+                    fontSize = if (isLandscape) 11.sp else 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.ancientKeysColors.keyActionText,
+                    maxLines = 1
+                )
             }
 
             // Comma (for English, Numbers, or Phonetic mode)
             if (keyboardMode != KeyboardMode.HISTORICAL) {
-                Button(
+                ImeActionKey(
                     onClick = {
-                        triggerHaptic()
                         onKeyClick(ScriptKey(character = ",", unicodeCodePoint = "U+002C"))
                     },
+                    onHaptic = ::triggerHaptic,
                     modifier = Modifier
                         .fillMaxHeight()
-                        .widthIn(min = 34.dp, max = 40.dp)
-                        .semantics { contentDescription = "Comma" },
-                    shape = AncientKeysDesignTokens.Shapes.keyShape,
-                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.ancientKeysColors.keyActionBackground,
-                        contentColor = MaterialTheme.ancientKeysColors.keyActionText
-                    )
+                        .widthIn(min = 34.dp, max = 40.dp),
+                    contentDescription = "Comma"
                 ) {
                     Text(",", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
@@ -1371,9 +1367,8 @@ private fun MultiModeKeyboardContent(
             val isHistorical = keyboardMode == KeyboardMode.HISTORICAL
             val spaceWeight = if (isHistorical) 2.4f else 3.8f
 
-            Button(
+            ImeActionKey(
                 onClick = {
-                    triggerHaptic()
                     if (keyboardMode == KeyboardMode.EASY_PHONETIC && phoneticBuffer.isNotEmpty() && activePhoneticEngine != null) {
                         val converted = activePhoneticEngine.convert(phoneticBuffer)
                         if (converted.isNotEmpty()) {
@@ -1389,18 +1384,14 @@ private fun MultiModeKeyboardContent(
                     }
                     onSpaceClick()
                 },
+                onHaptic = ::triggerHaptic,
                 modifier = Modifier
                     .weight(spaceWeight)
                     .fillMaxHeight()
-                    .widthIn(min = ImeDimensionsHelper.MIN_SPACE_KEY_WIDTH_DP.dp)
-                    .semantics { contentDescription = "Space" },
-                shape = AncientKeysDesignTokens.Shapes.keyShape,
-                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.ancientKeysColors.keyBackground,
-                    contentColor = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.75f)
-                )
+                    .widthIn(min = ImeDimensionsHelper.MIN_SPACE_KEY_WIDTH_DP.dp),
+                containerColor = MaterialTheme.ancientKeysColors.keyBackground,
+                contentColor = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.75f),
+                contentDescription = "Space"
             ) {
                 Text(
                     text = when (keyboardMode) {
@@ -1419,23 +1410,15 @@ private fun MultiModeKeyboardContent(
 
             // Period (for English, Numbers, or Phonetic mode)
             if (keyboardMode != KeyboardMode.HISTORICAL) {
-                Button(
+                ImeActionKey(
                     onClick = {
-                        triggerHaptic()
                         onKeyClick(ScriptKey(character = ".", unicodeCodePoint = "U+002E"))
                     },
+                    onHaptic = ::triggerHaptic,
                     modifier = Modifier
                         .fillMaxHeight()
-                        .widthIn(min = 34.dp, max = 40.dp)
-                        .semantics { contentDescription = "Period" },
-                    shape = AncientKeysDesignTokens.Shapes.keyShape,
-                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.ancientKeysColors.keyActionBackground,
-                        contentColor = MaterialTheme.ancientKeysColors.keyActionText
-                    )
+                        .widthIn(min = 34.dp, max = 40.dp),
+                    contentDescription = "Period"
                 ) {
                     Text(".", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
@@ -1443,58 +1426,55 @@ private fun MultiModeKeyboardContent(
 
             // Backspace (⌫) — ONLY visible in Historical mode (in English & Numbers, Backspace is on Row 3)
             if (isHistorical) {
-                RepeatKeyButton(
-                    onClick = {
-                        triggerHaptic()
-                        onBackspaceClick()
-                    },
+                Box(
                     modifier = Modifier
                         .weight(1.3f)
                         .fillMaxHeight()
-                        .widthIn(min = ImeDimensionsHelper.MIN_BACKSPACE_KEY_WIDTH_DP.dp),
-                    shape = AncientKeysDesignTokens.Shapes.keyShape,
-                    contentDescription = "Backspace"
+                        .widthIn(min = ImeDimensionsHelper.MIN_BACKSPACE_KEY_WIDTH_DP.dp)
                 ) {
-                    Text("⌫", fontSize = if (isLandscape) 14.sp else 16.sp, fontWeight = FontWeight.Bold)
+                    RepeatKeyButton(
+                        onClick = onBackspaceClick,
+                        onRepeatClick = onBackspaceRepeat,
+                        onHaptic = ::triggerHaptic,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 2.dp, vertical = 1.5.dp),
+                        contentDescription = "Backspace"
+                    ) {
+                        Text("⌫", fontSize = if (isLandscape) 14.sp else 16.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
 
             // Enter / Action Key - Prominent Sage Primary Action Key matching EditorInfo semantics
             val actionInfo = remember(editorInfo) { ImeInputHelper.getImeActionInfo(editorInfo) }
-            Button(
+            ImeActionKey(
                 onClick = {
-                    triggerHaptic()
-                    // Phonetic & Romanized composition safety:
-                    // If an uncommitted composition buffer exists, commit the composed character
-                    // and clear the buffer without prematurely dispatching the editor action.
                     if (keyboardMode == KeyboardMode.EASY_PHONETIC && phoneticBuffer.isNotEmpty() && activePhoneticEngine != null) {
                         val converted = activePhoneticEngine.convert(phoneticBuffer)
                         if (converted.isNotEmpty()) {
                             onKeyClick(ScriptKey(character = converted, unicodeCodePoint = currentScript.id.uppercase()))
                         }
                         phoneticBuffer = ""
-                        return@Button
+                        return@ImeActionKey
                     } else if (keyboardMode == KeyboardMode.ROMANIZED && romanizedBuffer.isNotEmpty() && activeRomanizer != null) {
                         val transliterated = activeRomanizer.transliterateToken(romanizedBuffer)
                         if (transliterated.isNotEmpty()) {
                             onKeyClick(ScriptKey(character = transliterated, unicodeCodePoint = currentScript.id.uppercase()))
                         }
                         romanizedBuffer = ""
-                        return@Button
+                        return@ImeActionKey
                     }
                     onEnterClick()
                 },
+                onHaptic = ::triggerHaptic,
                 modifier = Modifier
                     .weight(1.3f)
                     .fillMaxHeight()
-                    .widthIn(min = ImeDimensionsHelper.MIN_ENTER_KEY_WIDTH_DP.dp)
-                    .semantics { contentDescription = actionInfo.contentDescription },
-                shape = AncientKeysDesignTokens.Shapes.keyShape,
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                    contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
-                )
+                    .widthIn(min = ImeDimensionsHelper.MIN_ENTER_KEY_WIDTH_DP.dp),
+                containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
+                contentDescription = actionInfo.contentDescription
             ) {
                 Text(
                     text = if (isLandscape) actionInfo.compactLabel else actionInfo.displayLabel,
@@ -1516,7 +1496,9 @@ private fun EnglishQwertyKeyboard(
     onShiftClick: () -> Unit,
     onLetterClick: (String) -> Unit,
     onLetterLongClick: ((String) -> Unit)? = null,
-    onBackspaceClick: () -> Unit
+    onBackspaceClick: () -> Unit,
+    onBackspaceRepeat: () -> Unit = onBackspaceClick,
+    onHaptic: () -> Unit = {}
 ) {
     val isUpper = EnglishKeyboardData.isUppercase(shiftState)
     val row1 = if (isUpper) EnglishKeyboardData.QWERTY_ROW_1_UPPER else EnglishKeyboardData.QWERTY_ROW_1_LOWER
@@ -1529,53 +1511,48 @@ private fun EnglishQwertyKeyboard(
             .padding(vertical = 1.dp),
         verticalArrangement = Arrangement.SpaceEvenly
     ) {
-        // Row 1
+        // Row 1 - 10 keys, zero dead space between keys
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                .weight(1f)
         ) {
             row1.forEach { char ->
                 QwertyKey(
                     label = char,
                     onClick = { onLetterClick(char) },
                     onLongClick = if (onLetterLongClick != null) { { onLetterLongClick(char) } } else null,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                    isLandscape = isLandscape
+                    modifier = Modifier.weight(1f),
+                    isLandscape = isLandscape,
+                    onHaptic = onHaptic
                 )
             }
         }
 
-        // Row 2
+        // Row 2 - 9 keys with side padding, zero dead space between keys
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(horizontal = if (isLandscape) 8.dp else 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                .padding(horizontal = if (isLandscape) 8.dp else 12.dp)
         ) {
             row2.forEach { char ->
                 QwertyKey(
                     label = char,
                     onClick = { onLetterClick(char) },
                     onLongClick = if (onLetterLongClick != null) { { onLetterLongClick(char) } } else null,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                    isLandscape = isLandscape
+                    modifier = Modifier.weight(1f),
+                    isLandscape = isLandscape,
+                    onHaptic = onHaptic
                 )
             }
         }
 
-        // Row 3 (Shift, z-m, Backspace)
+        // Row 3 - Shift (1.5f), 7 keys (1f each), Backspace (1.5f)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Shift Key
@@ -1584,29 +1561,22 @@ private fun EnglishQwertyKeyboard(
                 ShiftState.ON_ONCE -> "Shift on, single letter"
                 ShiftState.CAPS_LOCK -> "Caps lock enabled"
             }
-            Button(
+            ImeActionKey(
                 onClick = onShiftClick,
-                modifier = Modifier
-                    .weight(1.5f)
-                    .fillMaxHeight()
-                    .padding(vertical = 1.dp)
-                    .semantics { contentDescription = shiftDesc },
+                onHaptic = onHaptic,
+                modifier = Modifier.weight(1.5f),
                 shape = AncientKeysDesignTokens.Shapes.actionKeyShape,
-                border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = AncientKeysDesignTokens.Elevation.keyElevation),
-                contentPadding = PaddingValues(0.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = when (shiftState) {
-                        ShiftState.OFF -> MaterialTheme.ancientKeysColors.keyActionBackground
-                        ShiftState.ON_ONCE -> MaterialTheme.ancientKeysColors.keyPrimaryActionBackground.copy(alpha = 0.85f)
-                        ShiftState.CAPS_LOCK -> MaterialTheme.ancientKeysColors.keyPrimaryActionBackground
-                    },
-                    contentColor = when (shiftState) {
-                        ShiftState.OFF -> MaterialTheme.ancientKeysColors.keyActionText
-                        ShiftState.ON_ONCE -> MaterialTheme.ancientKeysColors.keyPrimaryActionText
-                        ShiftState.CAPS_LOCK -> MaterialTheme.ancientKeysColors.keyPrimaryActionText
-                    }
-                )
+                containerColor = when (shiftState) {
+                    ShiftState.OFF -> MaterialTheme.ancientKeysColors.keyActionBackground
+                    ShiftState.ON_ONCE -> MaterialTheme.ancientKeysColors.keyPrimaryActionBackground.copy(alpha = 0.85f)
+                    ShiftState.CAPS_LOCK -> MaterialTheme.ancientKeysColors.keyPrimaryActionBackground
+                },
+                contentColor = when (shiftState) {
+                    ShiftState.OFF -> MaterialTheme.ancientKeysColors.keyActionText
+                    ShiftState.ON_ONCE -> MaterialTheme.ancientKeysColors.keyPrimaryActionText
+                    ShiftState.CAPS_LOCK -> MaterialTheme.ancientKeysColors.keyPrimaryActionText
+                },
+                contentDescription = shiftDesc
             ) {
                 Text(
                     text = when (shiftState) {
@@ -1624,23 +1594,29 @@ private fun EnglishQwertyKeyboard(
                     label = char,
                     onClick = { onLetterClick(char) },
                     onLongClick = if (onLetterLongClick != null) { { onLetterLongClick(char) } } else null,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                    isLandscape = isLandscape
+                    modifier = Modifier.weight(1f),
+                    isLandscape = isLandscape,
+                    onHaptic = onHaptic
                 )
             }
 
             // Inline Repeat Backspace on Row 3
-            RepeatKeyButton(
-                onClick = onBackspaceClick,
+            Box(
                 modifier = Modifier
                     .weight(1.5f)
                     .fillMaxHeight()
-                    .padding(vertical = 1.dp),
-                contentDescription = "Backspace"
             ) {
-                Text("⌫", fontSize = if (isLandscape) 14.sp else 16.sp, fontWeight = FontWeight.Bold)
+                RepeatKeyButton(
+                    onClick = onBackspaceClick,
+                    onRepeatClick = onBackspaceRepeat,
+                    onHaptic = onHaptic,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 2.dp, vertical = 1.5.dp),
+                    contentDescription = "Backspace"
+                ) {
+                    Text("⌫", fontSize = if (isLandscape) 14.sp else 16.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
@@ -1652,7 +1628,9 @@ private fun EnglishQwertyKeyboard(
 private fun NumbersSymbolsKeyboard(
     isLandscape: Boolean = false,
     onSymbolClick: (String) -> Unit,
-    onBackspaceClick: () -> Unit
+    onBackspaceClick: () -> Unit,
+    onBackspaceRepeat: () -> Unit = onBackspaceClick,
+    onHaptic: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -1664,18 +1642,16 @@ private fun NumbersSymbolsKeyboard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                .weight(1f)
         ) {
             EnglishKeyboardData.NUMBERS_ROW.forEach { num ->
                 QwertyKey(
                     label = num,
                     onClick = { onSymbolClick(num) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
+                    modifier = Modifier.weight(1f),
                     isAccent = true,
-                    isLandscape = isLandscape
+                    isLandscape = isLandscape,
+                    onHaptic = onHaptic
                 )
             }
         }
@@ -1684,17 +1660,15 @@ private fun NumbersSymbolsKeyboard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                .weight(1f)
         ) {
             EnglishKeyboardData.SYMBOLS_ROW_1.forEach { sym ->
                 QwertyKey(
                     label = sym,
                     onClick = { onSymbolClick(sym) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                    isLandscape = isLandscape
+                    modifier = Modifier.weight(1f),
+                    isLandscape = isLandscape,
+                    onHaptic = onHaptic
                 )
             }
         }
@@ -1703,17 +1677,15 @@ private fun NumbersSymbolsKeyboard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                .weight(1f)
         ) {
             EnglishKeyboardData.SYMBOLS_ROW_2.forEach { sym ->
                 QwertyKey(
                     label = sym,
                     onClick = { onSymbolClick(sym) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                    isLandscape = isLandscape
+                    modifier = Modifier.weight(1f),
+                    isLandscape = isLandscape,
+                    onHaptic = onHaptic
                 )
             }
         }
@@ -1723,29 +1695,34 @@ private fun NumbersSymbolsKeyboard(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(3.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             EnglishKeyboardData.SYMBOLS_ROW_3.take(8).forEach { sym ->
                 QwertyKey(
                     label = sym,
                     onClick = { onSymbolClick(sym) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                    isLandscape = isLandscape
+                    modifier = Modifier.weight(1f),
+                    isLandscape = isLandscape,
+                    onHaptic = onHaptic
                 )
             }
 
-            RepeatKeyButton(
-                onClick = onBackspaceClick,
+            Box(
                 modifier = Modifier
-                    .weight(1.8f)
+                    .weight(2f)
                     .fillMaxHeight()
-                    .padding(vertical = 1.dp),
-                contentDescription = "Backspace"
             ) {
-                Text("⌫", fontSize = if (isLandscape) 14.sp else 16.sp, fontWeight = FontWeight.Bold)
+                RepeatKeyButton(
+                    onClick = onBackspaceClick,
+                    onRepeatClick = onBackspaceRepeat,
+                    onHaptic = onHaptic,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 2.dp, vertical = 1.5.dp),
+                    contentDescription = "Backspace"
+                ) {
+                    Text("⌫", fontSize = if (isLandscape) 14.sp else 16.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
@@ -1753,7 +1730,6 @@ private fun NumbersSymbolsKeyboard(
 
 // --- Key Button Helpers ---
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun QwertyKey(
     label: String,
@@ -1761,51 +1737,156 @@ private fun QwertyKey(
     onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     isAccent: Boolean = false,
-    isLandscape: Boolean = false
+    isLandscape: Boolean = false,
+    onHaptic: () -> Unit = {}
 ) {
     val hasAlts = remember(label) { LongPressAlternativesData.hasAlternatives(label) }
+    var isPressed by remember { mutableStateOf(false) }
+    val currentOnClick by rememberUpdatedState(onClick)
+    val currentOnLongClick by rememberUpdatedState(onLongClick)
+    val currentOnHaptic by rememberUpdatedState(onHaptic)
 
-    Card(
+    Box(
         modifier = modifier
-            .padding(vertical = 1.dp)
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = if (hasAlts && onLongClick != null) onLongClick else null
-            )
-            .semantics { contentDescription = label },
-        shape = AncientKeysDesignTokens.Shapes.keyShape,
-        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isAccent)
-                MaterialTheme.ancientKeysColors.keyActionBackground
-            else MaterialTheme.ancientKeysColors.keyBackground
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = AncientKeysDesignTokens.Elevation.keyElevation)
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = label,
-                fontSize = if (isLandscape) 14.sp else 17.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.ancientKeysColors.keyText
-            )
-            if (hasAlts) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 1.dp, end = 2.dp),
-                    contentAlignment = Alignment.TopEnd
-                ) {
-                    Text(
-                        "·",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.ancientKeysColors.glyphAccent
-                    )
+            .fillMaxHeight()
+            .pointerInput(label, hasAlts) {
+                coroutineScope {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        down.consume()
+                        isPressed = true
+                        currentOnHaptic()
+
+                        var longPressJob: Job? = null
+                        var longPressTriggered = false
+
+                        if (hasAlts && currentOnLongClick != null) {
+                            longPressJob = launch {
+                                delay(380L)
+                                longPressTriggered = true
+                                currentOnHaptic()
+                                currentOnLongClick?.invoke()
+                            }
+                        }
+
+                        val up = waitForUpOrCancellation()
+                        longPressJob?.cancel()
+                        isPressed = false
+
+                        if (up != null) {
+                            up.consume()
+                            if (!longPressTriggered) {
+                                currentOnClick()
+                            }
+                        }
+                    }
                 }
+            }
+            .semantics { contentDescription = label }
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 2.dp, vertical = 1.5.dp),
+            shape = AncientKeysDesignTokens.Shapes.keyShape,
+            border = BorderStroke(
+                1.dp,
+                if (isPressed) MaterialTheme.ancientKeysColors.keyPrimaryActionBackground
+                else MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)
+            ),
+            color = if (isPressed) {
+                MaterialTheme.ancientKeysColors.keyPrimaryActionBackground.copy(alpha = 0.25f)
+            } else if (isAccent) {
+                MaterialTheme.ancientKeysColors.keyActionBackground
+            } else {
+                MaterialTheme.ancientKeysColors.keyBackground
+            },
+            shadowElevation = AncientKeysDesignTokens.Elevation.flat
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = label,
+                    fontSize = if (isLandscape) 14.sp else 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.ancientKeysColors.keyText
+                )
+                if (hasAlts) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = 1.dp, end = 3.dp),
+                        contentAlignment = Alignment.TopEnd
+                    ) {
+                        Text(
+                            "·",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.ancientKeysColors.glyphAccent
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ImeActionKey(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    shape: Shape = AncientKeysDesignTokens.Shapes.keyShape,
+    containerColor: Color = MaterialTheme.ancientKeysColors.keyActionBackground,
+    contentColor: Color = MaterialTheme.ancientKeysColors.keyActionText,
+    border: BorderStroke? = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+    contentDescription: String? = null,
+    onHaptic: () -> Unit = {},
+    content: @Composable () -> Unit
+) {
+    val currentOnClick by rememberUpdatedState(onClick)
+    val currentOnHaptic by rememberUpdatedState(onHaptic)
+    var isPressed by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .pointerInput(Unit) {
+                coroutineScope {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        down.consume()
+                        isPressed = true
+                        currentOnHaptic()
+
+                        val up = waitForUpOrCancellation()
+                        isPressed = false
+                        if (up != null) {
+                            up.consume()
+                            currentOnClick()
+                        }
+                    }
+                }
+            }
+            .then(
+                if (contentDescription != null) {
+                    Modifier.semantics { this.contentDescription = contentDescription }
+                } else Modifier
+            )
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 2.dp, vertical = 1.5.dp),
+            shape = shape,
+            border = if (isPressed) BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyPrimaryActionBackground) else border,
+            color = if (isPressed) MaterialTheme.ancientKeysColors.keyPrimaryActionBackground.copy(alpha = 0.25f) else containerColor,
+            contentColor = contentColor,
+            shadowElevation = AncientKeysDesignTokens.Elevation.flat
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                content()
             }
         }
     }
@@ -1820,6 +1901,7 @@ private fun ImeKeyItem(
     keySize: String = UserPreferencesRepository.DEFAULT_KEY_SIZE,
     showKeyLabels: Boolean = true,
     onClick: () -> Unit,
+    onHaptic: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val displayGlyph = UnicodeMetadataHelper.getDisplayGlyph(key)
@@ -1833,19 +1915,45 @@ private fun ImeKeyItem(
     }
     val itemHeight = (if (isLandscape) 42.dp else 52.dp) + sizeDelta
 
-    Card(
+    val currentOnClick by rememberUpdatedState(onClick)
+    val currentOnHaptic by rememberUpdatedState(onHaptic)
+    var isPressed by remember { mutableStateOf(false) }
+
+    Surface(
         modifier = modifier
             .fillMaxWidth()
             .height(itemHeight)
-            .clickable(onClick = onClick)
+            .pointerInput(key.unicodeCodePoint) {
+                coroutineScope {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        down.consume()
+                        isPressed = true
+                        currentOnHaptic()
+
+                        val up = waitForUpOrCancellation()
+                        isPressed = false
+                        if (up != null) {
+                            up.consume()
+                            currentOnClick()
+                        }
+                    }
+                }
+            }
             .semantics { contentDescription = accessibleDesc },
         shape = AncientKeysDesignTokens.Shapes.keyShape,
-        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.ancientKeysColors.keyBackground,
-            contentColor = MaterialTheme.ancientKeysColors.keyText
+        border = BorderStroke(
+            1.dp,
+            if (isPressed) MaterialTheme.ancientKeysColors.keyPrimaryActionBackground
+            else MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = AncientKeysDesignTokens.Elevation.keyElevation)
+        color = if (isPressed) {
+            MaterialTheme.ancientKeysColors.keyPrimaryActionBackground.copy(alpha = 0.25f)
+        } else {
+            MaterialTheme.ancientKeysColors.keyBackground
+        },
+        contentColor = MaterialTheme.ancientKeysColors.keyText,
+        shadowElevation = AncientKeysDesignTokens.Elevation.flat
     ) {
         Column(
             modifier = Modifier

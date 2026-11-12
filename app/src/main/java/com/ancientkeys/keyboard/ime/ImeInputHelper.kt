@@ -62,9 +62,15 @@ object ImeInputHelper {
     fun commitCharacter(inputConnection: InputConnection?, character: String) {
         if (inputConnection == null || character.isEmpty()) return
         try {
+            inputConnection.beginBatchEdit()
             inputConnection.commitText(character, 1)
         } catch (_: Exception) {
             // Silently swallow exceptions from misbehaving third-party target applications
+        } finally {
+            try {
+                inputConnection.endBatchEdit()
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -74,8 +80,14 @@ object ImeInputHelper {
     fun handleSpace(inputConnection: InputConnection?) {
         if (inputConnection == null) return
         try {
+            inputConnection.beginBatchEdit()
             inputConnection.commitText(" ", 1)
         } catch (_: Exception) {
+        } finally {
+            try {
+                inputConnection.endBatchEdit()
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -88,16 +100,23 @@ object ImeInputHelper {
      * - Combining diacritical marks (e.g. Brahmi / Kharosthi vowel signs)
      * - Empty input / cursor at position 0 (safe no-op)
      * - Truncated or unusual input connection responses
+     * - Batch edit wrapping for zero IPC layout thrashing in host applications
+     * - Repeat backspace bypass of redundant getSelectedText checks
      */
-    fun handleBackspace(inputConnection: InputConnection?) {
+    fun handleBackspace(inputConnection: InputConnection?, isRepeating: Boolean = false) {
         if (inputConnection == null) return
 
         try {
-            // 1. If text is currently selected, replace the selection with an empty string
-            val selectedText = inputConnection.getSelectedText(0)
-            if (!selectedText.isNullOrEmpty()) {
-                inputConnection.commitText("", 1)
-                return
+            inputConnection.beginBatchEdit()
+
+            // 1. If not repeating, inspect if text is currently selected; delete selection if present.
+            // On repeated backspace pulses, selection was already cleared on initial press.
+            if (!isRepeating) {
+                val selectedText = inputConnection.getSelectedText(0)
+                if (!selectedText.isNullOrEmpty()) {
+                    inputConnection.commitText("", 1)
+                    return
+                }
             }
 
             // 2. Inspect up to 16 characters before cursor to accurately detect grapheme clusters
@@ -137,6 +156,11 @@ object ImeInputHelper {
             }
         } catch (_: Exception) {
             // Prevent crashes caused by third-party apps throwing unexpected runtime exceptions
+        } finally {
+            try {
+                inputConnection.endBatchEdit()
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -257,6 +281,7 @@ object ImeInputHelper {
     fun handleEnter(inputConnection: InputConnection?, editorInfo: EditorInfo?) {
         if (inputConnection == null) return
         try {
+            inputConnection.beginBatchEdit()
             val actionInfo = getImeActionInfo(editorInfo)
             if (actionInfo.isEnterNewline) {
                 inputConnection.commitText("\n", 1)
@@ -268,6 +293,11 @@ object ImeInputHelper {
                 }
             }
         } catch (_: Exception) {
+        } finally {
+            try {
+                inputConnection.endBatchEdit()
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -278,8 +308,14 @@ object ImeInputHelper {
     fun setComposingText(inputConnection: InputConnection?, text: CharSequence, newCursorPosition: Int = 1) {
         if (inputConnection == null) return
         try {
+            inputConnection.beginBatchEdit()
             inputConnection.setComposingText(text, newCursorPosition)
         } catch (_: Exception) {
+        } finally {
+            try {
+                inputConnection.endBatchEdit()
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -289,8 +325,14 @@ object ImeInputHelper {
     fun finishComposingText(inputConnection: InputConnection?) {
         if (inputConnection == null) return
         try {
+            inputConnection.beginBatchEdit()
             inputConnection.finishComposingText()
         } catch (_: Exception) {
+        } finally {
+            try {
+                inputConnection.endBatchEdit()
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -300,8 +342,14 @@ object ImeInputHelper {
     fun commitComposingText(inputConnection: InputConnection?, text: String) {
         if (inputConnection == null) return
         try {
+            inputConnection.beginBatchEdit()
             inputConnection.commitText(text, 1)
         } catch (_: Exception) {
+        } finally {
+            try {
+                inputConnection.endBatchEdit()
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -311,9 +359,15 @@ object ImeInputHelper {
     fun cancelComposingText(inputConnection: InputConnection?) {
         if (inputConnection == null) return
         try {
+            inputConnection.beginBatchEdit()
             inputConnection.setComposingText("", 1)
             inputConnection.finishComposingText()
         } catch (_: Exception) {
+        } finally {
+            try {
+                inputConnection.endBatchEdit()
+            } catch (_: Exception) {
+            }
         }
     }
 }

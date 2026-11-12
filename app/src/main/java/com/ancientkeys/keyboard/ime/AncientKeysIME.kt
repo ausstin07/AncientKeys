@@ -155,7 +155,10 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
                             ImeInputHelper.handleSpace(currentInputConnection)
                         },
                         onBackspaceClick = {
-                            ImeInputHelper.handleBackspace(currentInputConnection)
+                            ImeInputHelper.handleBackspace(currentInputConnection, isRepeating = false)
+                        },
+                        onBackspaceRepeat = {
+                            ImeInputHelper.handleBackspace(currentInputConnection, isRepeating = true)
                         },
                         onEnterClick = {
                             ImeInputHelper.handleEnter(currentInputConnection, currentInputEditorInfo)
