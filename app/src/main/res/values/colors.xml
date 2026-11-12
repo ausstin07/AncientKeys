@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- AncientKeys Brand Palette: Deep Navy, Sandstone Gold, and Ivory -->
-    <color name="ic_launcher_background">#0F172A</color>
+    <!-- AncientKeys Brand Palette: Sage Green, Sandstone Gold, and Ivory -->
+    <color name="ic_launcher_background">#3C5139</color>
     <color name="brand_navy_primary">#0F172A</color>
     <color name="brand_navy_surface">#1E293B</color>
     <color name="brand_sandstone_gold">#D4AF37</color>
