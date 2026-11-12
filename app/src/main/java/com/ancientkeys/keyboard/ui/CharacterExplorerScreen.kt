@@ -16,8 +16,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -186,7 +188,10 @@ fun CharacterExplorerScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         AncientKeysIconButton(
                             onClick = onBackClick,
                             contentDescription = "Navigate back to Home",
@@ -204,7 +209,9 @@ fun CharacterExplorerScreen(
                             text = "Character Explorer",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.ancientKeysColors.keyText
+                            color = MaterialTheme.ancientKeysColors.keyText,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
@@ -266,30 +273,39 @@ fun CharacterExplorerScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(text = getScriptIcon(currentScript.id), fontSize = 20.sp)
                             Spacer(modifier = Modifier.width(10.dp))
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = currentScript.name,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp,
-                                    color = MaterialTheme.ancientKeysColors.keyText
+                                    color = MaterialTheme.ancientKeysColors.keyText,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
                                     text = currentScript.historicalPeriod,
                                     fontSize = 11.sp,
-                                    color = MaterialTheme.ancientKeysColors.chipText
+                                    color = MaterialTheme.ancientKeysColors.chipText,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
+
+                        Spacer(modifier = Modifier.width(8.dp))
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (currentScript.isRtl) {
                                 SuggestionChip(
                                     onClick = { isScriptMenuExpanded = true },
                                     label = { Text("RTL", fontSize = 9.sp, fontWeight = FontWeight.Bold) },
-                                    modifier = Modifier.height(24.dp)
+                                    modifier = Modifier.heightIn(min = 24.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                             }
@@ -563,7 +579,7 @@ private fun ExplorerCharacterTile(
     AncientKeysCard(
         modifier = Modifier
             .fillMaxWidth()
-            .height(72.dp)
+            .heightIn(min = 76.dp)
             .semantics {
                 role = Role.Button
                 contentDescription = accessibleDesc
@@ -574,11 +590,11 @@ private fun ExplorerCharacterTile(
         elevation = if (isSelected) 2.dp else 1.dp,
         onClick = onClick
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxWidth().heightIn(min = 76.dp)) {
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -679,18 +695,22 @@ private fun CharacterDetailPanel(
             ) {
                 // Large Preview Glyph Tile
                 Surface(
-                    modifier = Modifier.size(62.dp),
+                    modifier = Modifier.sizeIn(minWidth = 62.dp, minHeight = 62.dp),
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.ancientKeysColors.chipBackground,
                     border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f))
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.padding(4.dp)
+                    ) {
                         Text(
                             text = displayGlyph,
                             fontFamily = scriptFont,
                             fontSize = 32.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.ancientKeysColors.keyText
+                            color = MaterialTheme.ancientKeysColors.keyText,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -698,7 +718,10 @@ private fun CharacterDetailPanel(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 // Character Identity Details
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -714,8 +737,9 @@ private fun CharacterDetailPanel(
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.ancientKeysColors.keyText,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f).padding(end = 6.dp)
                         )
                         IconButton(
                             onClick = onToggleFavorite,
@@ -763,7 +787,7 @@ private fun CharacterDetailPanel(
                     )
 
                     if (!isRenderable) {
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
                         Surface(
                             shape = RoundedCornerShape(4.dp),
                             color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f),
@@ -801,7 +825,7 @@ private fun CharacterDetailPanel(
                         fontSize = 11.sp,
                         color = MaterialTheme.ancientKeysColors.keyText,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                        maxLines = 2,
+                        maxLines = 3,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -878,18 +902,22 @@ private fun FullCharacterDetailSheet(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Surface(
-                modifier = Modifier.size(80.dp),
+                modifier = Modifier.sizeIn(minWidth = 80.dp, minHeight = 80.dp),
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.ancientKeysColors.chipBackground,
                 border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder)
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.padding(6.dp)
+                ) {
                     Text(
                         text = displayGlyph,
                         fontFamily = scriptFont,
                         fontSize = 40.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.ancientKeysColors.keyText
+                        color = MaterialTheme.ancientKeysColors.keyText,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -901,8 +929,11 @@ private fun FullCharacterDetailSheet(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
-                color = MaterialTheme.ancientKeysColors.keyText
+                color = MaterialTheme.ancientKeysColors.keyText,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
             )
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             Text(
                 text = "${key.unicodeCodePoint} (Decimal: $codePointInt)",
@@ -993,7 +1024,7 @@ private fun DetailSpecRow(label: String, value: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 3.dp),
+            .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Top
     ) {
@@ -1002,14 +1033,15 @@ private fun DetailSpecRow(label: String, value: String) {
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.ancientKeysColors.chipText,
-            modifier = Modifier.width(130.dp)
+            modifier = Modifier.weight(0.38f)
         )
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = value,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.ancientKeysColors.keyText,
             textAlign = TextAlign.End,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(0.62f)
         )
     }
 }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -46,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ancientkeys.keyboard.learn.FoundationalArticle
@@ -136,19 +138,23 @@ fun LearnScreen(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(32.dp)
+                                .heightIn(min = 36.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(
                                     if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
                                 )
-                                .clickable { selectedTab = idx },
+                                .clickable { selectedTab = idx }
+                                .padding(vertical = 4.dp, horizontal = 2.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = title,
                                 fontSize = 11.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.ancientKeysColors.keyText
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.ancientKeysColors.keyText,
+                                textAlign = TextAlign.Center,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -223,17 +229,21 @@ private fun LearnTopBar(
 
             Spacer(modifier = Modifier.width(6.dp))
 
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.ancientKeysColors.keyText
+                    color = MaterialTheme.ancientKeysColors.keyText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = subtitle,
                     fontSize = 11.sp,
-                    color = MaterialTheme.ancientKeysColors.chipText
+                    color = MaterialTheme.ancientKeysColors.chipText,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -277,7 +287,8 @@ private fun WritingSystemsTab(
                             text = profile.name,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.ancientKeysColors.keyText
+                            color = MaterialTheme.ancientKeysColors.keyText,
+                            modifier = Modifier.weight(1f).padding(end = 8.dp)
                         )
                         Surface(
                             shape = RoundedCornerShape(6.dp),
@@ -375,8 +386,7 @@ private fun FoundationsTab(
                     Text(
                         text = article.summary,
                         fontSize = 12.sp,
-                        color = MaterialTheme.ancientKeysColors.chipText,
-                        lineHeight = 17.sp
+                        color = MaterialTheme.ancientKeysColors.chipText
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -484,11 +494,14 @@ private fun PracticeTaskItem(task: TypingPracticeTask) {
                 }
 
                 if (hasAnswered) {
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = if (isCorrect) "✓ Correct!" else "Try again or view below",
                         fontWeight = FontWeight.Bold,
                         color = if (isCorrect) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                        fontSize = 12.sp
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                 }
             }
@@ -512,8 +525,7 @@ private fun PracticeTaskItem(task: TypingPracticeTask) {
                         Text(
                             text = task.explanation,
                             fontSize = 11.sp,
-                            color = MaterialTheme.ancientKeysColors.chipText,
-                            lineHeight = 16.sp
+                            color = MaterialTheme.ancientKeysColors.chipText
                         )
                     }
                 }
@@ -571,14 +583,14 @@ private fun ScriptProfileDetailView(
         Column {
             Text("✍️ Consonant & Vowel Mechanics", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.ancientKeysColors.keyText)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(profile.consonantVowelMechanics, fontSize = 12.sp, color = MaterialTheme.ancientKeysColors.chipText, lineHeight = 18.sp)
+            Text(profile.consonantVowelMechanics, fontSize = 12.sp, color = MaterialTheme.ancientKeysColors.chipText)
         }
 
         // Numeral System
         Column {
             Text("🔢 Numeral System", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.ancientKeysColors.keyText)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(profile.numeralConventions, fontSize = 12.sp, color = MaterialTheme.ancientKeysColors.chipText, lineHeight = 18.sp)
+            Text(profile.numeralConventions, fontSize = 12.sp, color = MaterialTheme.ancientKeysColors.chipText)
         }
 
         // Notable Epigraphic Inscriptions
@@ -677,8 +689,7 @@ private fun ArticleDetailView(
         Text(
             text = article.fullMarkdown,
             fontSize = 13.sp,
-            color = MaterialTheme.ancientKeysColors.keyText,
-            lineHeight = 20.sp
+            color = MaterialTheme.ancientKeysColors.keyText
         )
 
         Spacer(modifier = Modifier.height(16.dp))
