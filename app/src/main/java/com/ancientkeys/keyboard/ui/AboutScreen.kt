@@ -197,7 +197,7 @@ private fun AboutOverviewContent() {
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "v1.0 (Development build v1.1)",
+                            text = "v1.0.1",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary
