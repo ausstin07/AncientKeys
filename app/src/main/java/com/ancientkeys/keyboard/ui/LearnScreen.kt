@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -283,7 +284,7 @@ private fun WritingSystemsTab(
                 Column(modifier = Modifier.padding(14.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.Top
                     ) {
                         Surface(
                             modifier = Modifier.size(36.dp),
@@ -311,30 +312,63 @@ private fun WritingSystemsTab(
                             }
                         }
                         Spacer(modifier = Modifier.width(10.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = profile.name,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.ancientKeysColors.keyText,
-                                    modifier = Modifier.weight(1f).padding(end = 6.dp)
-                                )
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = MaterialTheme.ancientKeysColors.chipSelectedBackground
+                        BoxWithConstraints(modifier = Modifier.weight(1f)) {
+                            // On wide displays where title and badge comfortably fit side by side,
+                            // use a horizontal row. On phone screens, or when the script name / classification
+                            // text is long, stack the badge beneath the title to prevent horizontal text compression.
+                            val estimatedNeededWidth = (profile.name.length * 10 + profile.systemType.length * 7 + 40).dp
+                            val canFitSideBySide = maxWidth >= estimatedNeededWidth && maxWidth >= 480.dp
+
+                            if (canFitSideBySide) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = profile.systemType,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.ancientKeysColors.chipSelectedText,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        text = profile.name,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.ancientKeysColors.keyText,
+                                        modifier = Modifier.weight(1f, fill = false).padding(end = 8.dp)
                                     )
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = MaterialTheme.ancientKeysColors.chipSelectedBackground
+                                    ) {
+                                        Text(
+                                            text = profile.systemType,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.ancientKeysColors.chipSelectedText,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                }
+                            } else {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = profile.name,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.ancientKeysColors.keyText,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = MaterialTheme.ancientKeysColors.chipSelectedBackground
+                                    ) {
+                                        Text(
+                                            text = profile.systemType,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.ancientKeysColors.chipSelectedText,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -662,12 +696,14 @@ private fun ScriptProfileDetailView(
                         text = profile.name,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.ancientKeysColors.keyText
+                        color = MaterialTheme.ancientKeysColors.keyText,
+                        modifier = Modifier.fillMaxWidth()
                     )
                     Text(
                         text = "${profile.systemType} • ${profile.writingDirection}",
                         fontSize = 11.sp,
-                        color = MaterialTheme.ancientKeysColors.chipText
+                        color = MaterialTheme.ancientKeysColors.chipText,
+                        modifier = Modifier.fillMaxWidth()
                     )
                     if (profile.alternativeNames.isNotEmpty()) {
                         Text(

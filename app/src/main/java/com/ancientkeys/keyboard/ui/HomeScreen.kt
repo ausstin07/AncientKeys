@@ -767,7 +767,8 @@ private fun FeaturedScriptCard(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.ancientKeysColors.keyText,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false).padding(end = 6.dp)
                         )
                         if (script.isRtl) {
                             SuggestionChip(

@@ -74,6 +74,17 @@ class LayoutTextOverlapRegressionTest {
             content.contains("val taskFont = remember(taskScriptId)") &&
                     content.contains("text = \"Target Script:\"")
         )
+
+        // Assert adaptive BoxWithConstraints layout in WritingSystemsTab preventing vertical single-letter compression
+        assertTrue(
+            "LearnScreen.kt must use BoxWithConstraints in WritingSystemsTab for adaptive title/badge layout",
+            content.contains("BoxWithConstraints(modifier = Modifier.weight(1f))")
+        )
+        assertTrue(
+            "LearnScreen.kt must stack badge beneath title with fillMaxWidth on narrow screens",
+            content.contains("modifier = Modifier.fillMaxWidth()") &&
+                    content.contains("val canFitSideBySide = maxWidth >=")
+        )
     }
 
     @Test
