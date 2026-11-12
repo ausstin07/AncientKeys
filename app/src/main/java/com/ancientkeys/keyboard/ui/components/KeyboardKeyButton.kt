@@ -12,6 +12,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ancientkeys.keyboard.model.ScriptKey
+import com.ancientkeys.keyboard.util.HistoricalFontProvider
 
 @Composable
 fun KeyboardKeyButton(
@@ -61,9 +63,12 @@ fun KeyboardKeyButton(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            val annotatedLabel = remember(key.label, fontFamily) {
+                HistoricalFontProvider.buildDisplayGlyphAnnotatedString(key.label, fontFamily)
+            }
             Text(
-                text = key.label,
-                fontFamily = fontFamily,
+                text = annotatedLabel,
+                fontFamily = if (key.label.contains('◌')) null else fontFamily,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

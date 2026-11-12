@@ -692,9 +692,12 @@ private fun ExplorerCharacterTile(
                         "egyptian", "egyptian_hieroglyphs" -> 20.sp
                         else -> 22.sp
                     }
+                    val annotatedGlyph = remember(displayGlyph, scriptFont) {
+                        HistoricalFontProvider.buildDisplayGlyphAnnotatedString(displayGlyph, scriptFont)
+                    }
                     Text(
-                        text = displayGlyph,
-                        fontFamily = scriptFont,
+                        text = annotatedGlyph,
+                        fontFamily = if (displayGlyph.contains('◌')) null else scriptFont,
                         fontSize = tileFontSize,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.ancientKeysColors.keyText,
@@ -786,9 +789,12 @@ private fun CharacterDetailPanel(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.padding(4.dp)
                     ) {
+                        val annotatedGlyph = remember(displayGlyph, scriptFont) {
+                            HistoricalFontProvider.buildDisplayGlyphAnnotatedString(displayGlyph, scriptFont)
+                        }
                         Text(
-                            text = displayGlyph,
-                            fontFamily = scriptFont,
+                            text = annotatedGlyph,
+                            fontFamily = if (displayGlyph.contains('◌')) null else scriptFont,
                             fontSize = previewFontSize,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.ancientKeysColors.keyText,
@@ -1005,9 +1011,12 @@ private fun FullCharacterDetailSheet(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.padding(6.dp)
                 ) {
+                    val annotatedGlyph = remember(displayGlyph, scriptFont) {
+                        HistoricalFontProvider.buildDisplayGlyphAnnotatedString(displayGlyph, scriptFont)
+                    }
                     Text(
-                        text = displayGlyph,
-                        fontFamily = scriptFont,
+                        text = annotatedGlyph,
+                        fontFamily = if (displayGlyph.contains('◌')) null else scriptFont,
                         fontSize = sheetFontSize,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.ancientKeysColors.keyText,

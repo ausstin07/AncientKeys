@@ -1962,9 +1962,12 @@ private fun ImeKeyItem(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            val annotatedGlyph = remember(displayGlyph, fontFamily) {
+                HistoricalFontProvider.buildDisplayGlyphAnnotatedString(displayGlyph, fontFamily)
+            }
             Text(
-                text = displayGlyph,
-                fontFamily = fontFamily,
+                text = annotatedGlyph,
+                fontFamily = if (displayGlyph.contains('◌')) null else fontFamily,
                 fontSize = if (isLandscape) 18.sp else 21.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.ancientKeysColors.keyText,

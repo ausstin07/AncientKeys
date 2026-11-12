@@ -20,10 +20,12 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -52,11 +54,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -128,6 +133,41 @@ fun PlaygroundScreen(
         ScriptRegistry.getScriptById(activeScriptId) ?: script
     }
     val isEnglish = activeScriptId == "english"
+
+    // Per-script text buffer isolation so switching scripts doesn't render mismatched fonts
+    val perScriptTextValues = rememberSaveable(
+        saver = Saver(
+            save = { map ->
+                HashMap(map.mapValues { it.value.text })
+            },
+            restore = { restored ->
+                val map = mutableStateMapOf<String, TextFieldValue>()
+                @Suppress("UNCHECKED_CAST")
+                (restored as? Map<String, String>)?.forEach { (k, v) -> map[k] = TextFieldValue(v) }
+                map
+            }
+        )
+    ) {
+        mutableStateMapOf<String, TextFieldValue>().apply {
+            if (textValue.text.isNotEmpty()) {
+                put(script.id, textValue)
+            }
+        }
+    }
+
+    LaunchedEffect(textValue) {
+        if (activeScriptId == script.id && textValue != perScriptTextValues[script.id]) {
+            perScriptTextValues[script.id] = textValue
+        }
+    }
+
+    val currentTextValue = perScriptTextValues[activeScriptId] ?: TextFieldValue("")
+    val handleTextChange: (TextFieldValue) -> Unit = { newValue ->
+        perScriptTextValues[activeScriptId] = newValue
+        if (activeScriptId == script.id) {
+            onTextValueChange(newValue)
+        }
+    }
 
     // View mode: 0 = Keyboard, 1 = Learn Mode
     var playgroundMode by rememberSaveable { mutableIntStateOf(0) }
@@ -295,8 +335,8 @@ fun PlaygroundScreen(
                     val textLayoutDirection = if (!isEnglish && currentScript.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
                     CompositionLocalProvider(LocalLayoutDirection provides textLayoutDirection) {
                         OutlinedTextField(
-                            value = textValue,
-                            onValueChange = onTextValueChange,
+                            value = currentTextValue,
+                            onValueChange = handleTextChange,
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(end = 40.dp),
@@ -332,9 +372,9 @@ fun PlaygroundScreen(
                     ) {
                         AncientKeysIconButton(
                             onClick = {
-                                if (textValue.text.isNotEmpty()) {
+                                if (currentTextValue.text.isNotEmpty()) {
                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    clipboard.setPrimaryClip(ClipData.newPlainText("AncientKeys text", textValue.text))
+                                    clipboard.setPrimaryClip(ClipData.newPlainText("AncientKeys text", currentTextValue.text))
                                     coroutineScope.launch {
                                         snackbarHostState.showSnackbar("Copied text to clipboard")
                                     }
@@ -348,11 +388,11 @@ fun PlaygroundScreen(
 
                         AncientKeysIconButton(
                             onClick = {
-                                if (textValue.text.isNotEmpty()) {
+                                if (currentTextValue.text.isNotEmpty()) {
                                     try {
                                         val intent = Intent(Intent.ACTION_SEND).apply {
                                             type = "text/plain"
-                                            putExtra(Intent.EXTRA_TEXT, textValue.text)
+                                            putExtra(Intent.EXTRA_TEXT, currentTextValue.text)
                                         }
                                         context.startActivity(Intent.createChooser(intent, "Share ancient text"))
                                     } catch (_: Exception) {
@@ -393,7 +433,7 @@ fun PlaygroundScreen(
                     label = "Transliterate",
                     modifier = Modifier.weight(1.1f),
                     onClick = {
-                        if (textValue.text.isNotBlank()) {
+                        if (currentTextValue.text.isNotBlank()) {
                             showTransliterateDialog = true
                         } else {
                             coroutineScope.launch {
@@ -409,11 +449,11 @@ fun PlaygroundScreen(
                     label = "Save",
                     modifier = Modifier.weight(0.9f),
                     onClick = {
-                        if (textValue.text.isNotBlank()) {
+                        if (currentTextValue.text.isNotBlank()) {
                             val record = ResearchRecord(
                                 title = "${currentScript.name} Inscription",
                                 scriptId = currentScript.id,
-                                originalText = textValue.text,
+                                originalText = currentTextValue.text,
                                 academicTransliteration = "",
                                 researcherTranslation = "",
                                 sourceReference = "AncientKeys In-App Playground",
@@ -449,8 +489,8 @@ fun PlaygroundScreen(
                         color = MaterialTheme.ancientKeysColors.chipBackground,
                         border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder.copy(alpha = 0.6f)),
                         modifier = Modifier.clickable {
-                            val newText = if (textValue.text.isEmpty()) word else "${textValue.text} $word"
-                            onTextValueChange(TextFieldValue(newText))
+                            val newText = if (currentTextValue.text.isEmpty()) word else "${currentTextValue.text} $word"
+                            handleTextChange(TextFieldValue(newText))
                         }
                     ) {
                         Text(
@@ -486,16 +526,16 @@ fun PlaygroundScreen(
                     onCategorySelect = { selectedCategoryIndex = it },
                     visibleKeys = visibleKeys,
                     onKeyInsert = { char ->
-                        onTextValueChange(UnicodeTextEditor.insert(textValue, char))
+                        handleTextChange(UnicodeTextEditor.insert(currentTextValue, char))
                     },
                     onSpace = {
-                        onTextValueChange(UnicodeTextEditor.insertSpace(textValue))
+                        handleTextChange(UnicodeTextEditor.insertSpace(currentTextValue))
                     },
                     onBackspace = {
-                        onTextValueChange(UnicodeTextEditor.deleteBackward(textValue))
+                        handleTextChange(UnicodeTextEditor.deleteBackward(currentTextValue))
                     },
                     onEnter = {
-                        onTextValueChange(UnicodeTextEditor.insertNewline(textValue))
+                        handleTextChange(UnicodeTextEditor.insertNewline(currentTextValue))
                     },
                     onGlobeClick = {
                         val scriptCycleList = listOf("english", "greek", "brahmi", "runic", "phoenician", "kharosthi", "egyptian")
@@ -524,8 +564,8 @@ fun PlaygroundScreen(
 
     // Transliteration Dialog
     if (showTransliterateDialog) {
-        val transliteratedText = remember(textValue.text, currentScript.id) {
-            transliterateAncientText(textValue.text, currentScript.id)
+        val transliteratedText = remember(currentTextValue.text, currentScript.id) {
+            transliterateAncientText(currentTextValue.text, currentScript.id)
         }
         val romanizer = remember(currentScript.id) {
             ScriptRomanizerProvider.getRomanizer(currentScript.id)
@@ -588,7 +628,7 @@ fun PlaygroundScreen(
                         color = MaterialTheme.ancientKeysColors.chipText
                     )
                     Text(
-                        text = textValue.text.ifBlank { "*(Canvas is empty)*" },
+                        text = currentTextValue.text.ifBlank { "*(Canvas is empty)*" },
                         fontFamily = scriptFont,
                         fontSize = 18.sp,
                         color = MaterialTheme.ancientKeysColors.keyText
@@ -834,7 +874,9 @@ private fun PlaygroundKeyboardView(
             if (isNumericMode) {
                 // Functional Numeric & Symbols Keyboard
                 Column(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     listOf(
@@ -843,7 +885,9 @@ private fun PlaygroundKeyboardView(
                         EnglishKeyboardData.SYMBOLS_ROW_2
                     ).forEach { rowKeys ->
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(46.dp),
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             rowKeys.forEach { k ->
@@ -851,7 +895,9 @@ private fun PlaygroundKeyboardView(
                                     label = k,
                                     subLabel = "",
                                     font = null,
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
                                     onClick = { onKeyInsert(k) }
                                 )
                             }
@@ -861,7 +907,9 @@ private fun PlaygroundKeyboardView(
             } else if (isEnglish) {
                 // English keyboard grid
                 Column(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     listOf(
@@ -870,7 +918,9 @@ private fun PlaygroundKeyboardView(
                         EnglishKeyboardData.QWERTY_ROW_3_LOWER
                     ).forEach { rowKeys ->
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(46.dp),
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             rowKeys.forEach { k ->
@@ -878,7 +928,9 @@ private fun PlaygroundKeyboardView(
                                     label = k,
                                     subLabel = "",
                                     font = null,
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight(),
                                     onClick = { onKeyInsert(k) }
                                 )
                             }
@@ -1088,6 +1140,7 @@ private fun PlaygroundKeyCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
+            .heightIn(min = 40.dp, max = 54.dp)
             .clickable(onClick = onClick),
         shape = AncientKeysDesignTokens.Shapes.keyShape,
         border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
@@ -1095,7 +1148,7 @@ private fun PlaygroundKeyCard(
             containerColor = MaterialTheme.ancientKeysColors.keyBackground,
             contentColor = MaterialTheme.ancientKeysColors.keyText
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = AncientKeysDesignTokens.Elevation.keyElevation)
+        elevation = CardDefaults.cardElevation(defaultElevation = AncientKeysDesignTokens.Elevation.flat)
     ) {
         Column(
             modifier = Modifier
@@ -1104,9 +1157,12 @@ private fun PlaygroundKeyCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            val annotatedLabel = remember(label, font) {
+                HistoricalFontProvider.buildDisplayGlyphAnnotatedString(label, font)
+            }
             Text(
-                text = label,
-                fontFamily = font,
+                text = annotatedLabel,
+                fontFamily = if (label.contains('◌')) null else font,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.ancientKeysColors.keyText,

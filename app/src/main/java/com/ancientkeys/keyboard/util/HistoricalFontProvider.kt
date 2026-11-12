@@ -2,6 +2,8 @@ package com.ancientkeys.keyboard.util
 
 import android.content.Context
 import android.graphics.Typeface
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontFamily
 
 /**
@@ -63,9 +65,14 @@ object HistoricalFontProvider {
      * Falls back to true if checking is unavailable or in unit tests.
      */
     fun canRenderGlyph(context: Context?, scriptId: String, character: String): Boolean {
-        if (character.isEmpty()) return false
+        val testCharacter = if (character.contains('◌')) {
+            character.replace("◌", "")
+        } else {
+            character
+        }
+        if (testCharacter.isEmpty()) return false
         val cleanId = scriptId.lowercase().trim()
-        val cacheKey = "$cleanId:$character"
+        val cacheKey = "$cleanId:$testCharacter"
         glyphSupportCache[cacheKey]?.let { return it }
 
         val canRender = try {
@@ -88,7 +95,7 @@ object HistoricalFontProvider {
                 }
             }
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                paint.hasGlyph(character)
+                paint.hasGlyph(testCharacter)
             } else {
                 true
             }
@@ -98,6 +105,43 @@ object HistoricalFontProvider {
 
         glyphSupportCache[cacheKey] = canRender
         return canRender
+    }
+
+    /**
+     * Builds an [AnnotatedString] that safely styles combining mark labels.
+     * When text contains the dotted circle placeholder ('◌', U+25CC), this method
+     * ensures '◌' is styled with [FontFamily.Default] (where the glyph exists in system fonts)
+     * while historical script characters are styled with [scriptFont].
+     */
+    fun buildDisplayGlyphAnnotatedString(
+        text: String,
+        scriptFont: FontFamily?
+    ): AnnotatedString {
+        if (!text.contains('◌')) {
+            return AnnotatedString(text)
+        }
+        val builder = AnnotatedString.Builder()
+        var i = 0
+        while (i < text.length) {
+            val cp = text.codePointAt(i)
+            val charCount = Character.charCount(cp)
+            val str = text.substring(i, i + charCount)
+            if (cp == 0x25CC) { // Dotted circle
+                builder.pushStyle(SpanStyle(fontFamily = FontFamily.Default))
+                builder.append(str)
+                builder.pop()
+            } else {
+                if (scriptFont != null) {
+                    builder.pushStyle(SpanStyle(fontFamily = scriptFont))
+                    builder.append(str)
+                    builder.pop()
+                } else {
+                    builder.append(str)
+                }
+            }
+            i += charCount
+        }
+        return builder.toAnnotatedString()
     }
 
     /**
