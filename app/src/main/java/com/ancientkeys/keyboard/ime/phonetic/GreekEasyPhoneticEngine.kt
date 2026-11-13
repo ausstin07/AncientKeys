@@ -17,6 +17,7 @@ object GreekEasyPhoneticEngine : EasyPhoneticEngine {
     override val engineName: String = "Ancient Greek Easy Phonetic"
     override val description: String = "Conversational English-to-Greek phonetic typing with digraphs, vowel pairs, and contextual final sigma."
 
+    private const val MAX_CACHE_ENTRIES = 256
     private val conversionCache = java.util.concurrent.ConcurrentHashMap<String, String>()
     private val candidateCache = java.util.concurrent.ConcurrentHashMap<String, List<PhoneticCandidate>>()
 
@@ -111,6 +112,9 @@ object GreekEasyPhoneticEngine : EasyPhoneticEngine {
         }
 
         val result = sb.toString()
+        if (conversionCache.size >= MAX_CACHE_ENTRIES) {
+            conversionCache.clear()
+        }
         conversionCache[rawInput] = result
         return result
     }
@@ -170,8 +174,16 @@ object GreekEasyPhoneticEngine : EasyPhoneticEngine {
         }
 
         val distinct = candidates.distinctBy { it.scriptResult }
+        if (candidateCache.size >= MAX_CACHE_ENTRIES) {
+            candidateCache.clear()
+        }
         candidateCache[rawInput] = distinct
         return distinct
+    }
+
+    override fun clearCache() {
+        conversionCache.clear()
+        candidateCache.clear()
     }
 }
 

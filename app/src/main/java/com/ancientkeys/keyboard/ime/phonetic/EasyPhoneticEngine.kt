@@ -39,5 +39,10 @@ interface EasyPhoneticEngine {
      * Generates a list of suggested candidates and variations for the current composition buffer.
      */
     fun getCandidates(rawInput: String): List<PhoneticCandidate>
+
+    /**
+     * Clears internal conversion and candidate caches to guarantee bounded memory usage.
+     */
+    fun clearCache() {}
 }
 

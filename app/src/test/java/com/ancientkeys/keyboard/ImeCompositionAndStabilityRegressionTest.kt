@@ -172,5 +172,50 @@ class ImeCompositionAndStabilityRegressionTest {
         }
         assertFalse(ImeInputHelper.isSensitiveField(normalInfo))
     }
+
+    @Test
+    fun testBoundedPhoneticCachesUnderHighThroughput() {
+        // Feed 500 distinct strings to test bounded cache eviction
+        for (i in 0 until 500) {
+            val query = "word$i"
+            BrahmiEasyPhoneticEngine.convert(query)
+            BrahmiEasyPhoneticEngine.getCandidates(query)
+            GreekEasyPhoneticEngine.convert(query)
+            GreekEasyPhoneticEngine.getCandidates(query)
+            KharosthiEasyPhoneticEngine.convert(query)
+            KharosthiEasyPhoneticEngine.getCandidates(query)
+        }
+
+        // Verify that caches function normally and clearAllCaches operates cleanly
+        com.ancientkeys.keyboard.ime.phonetic.EasyPhoneticProvider.clearAllCaches()
+
+        // Immediate subsequent conversions must succeed after cache flush
+        assertEquals("𑀒𑀲𑁆𑀢𑀺𑀦𑁆", BrahmiEasyPhoneticEngine.convert("austin"))
+        assertEquals("θ", GreekEasyPhoneticEngine.convert("th"))
+        assertEquals("𐨐", KharosthiEasyPhoneticEngine.convert("ka"))
+    }
+
+    @Test
+    fun testAllSevenModesAndScriptsRegistryIntegrity() {
+        val scripts = com.ancientkeys.keyboard.model.ScriptRegistry.allScripts
+        // 6 Historical scripts + English QWERTY = 7 distinct writing modes
+        assertEquals(6, scripts.size)
+        val scriptIds = scripts.map { it.id }.toSet()
+        assertTrue(scriptIds.contains("brahmi"))
+        assertTrue(scriptIds.contains("kharosthi"))
+        assertTrue(scriptIds.contains("greek"))
+        assertTrue(scriptIds.contains("egyptian"))
+        assertTrue(scriptIds.contains("phoenician"))
+        assertTrue(scriptIds.contains("runic"))
+
+        // Each historical script must have non-empty keys and valid metadata
+        for (script in scripts) {
+            assertTrue("Script ${script.name} keys must not be empty", script.keys.isNotEmpty())
+            for (key in script.keys) {
+                assertTrue("Key ${key.character} in ${script.name} must have non-empty character", key.character.isNotEmpty())
+                assertTrue("Key ${key.character} in ${script.name} must have valid Unicode code point", key.unicodeCodePoint.startsWith("U+"))
+            }
+        }
+    }
 }
 

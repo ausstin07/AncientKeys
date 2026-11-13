@@ -194,9 +194,20 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
         ensureDecorViewOwners()
     }
 
+    @Suppress("DEPRECATION")
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        com.ancientkeys.keyboard.ime.phonetic.EasyPhoneticProvider.clearAllCaches()
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_MODERATE) {
+            com.ancientkeys.keyboard.util.HistoricalFontProvider.clearCache()
+        }
+    }
+
     override fun onDestroy() {
         themeUnregisterCallback?.invoke()
         themeUnregisterCallback = null
+        com.ancientkeys.keyboard.ime.phonetic.EasyPhoneticProvider.clearAllCaches()
+        com.ancientkeys.keyboard.util.HistoricalFontProvider.clearCache()
         super.onDestroy()
         dispatchDestroyLifecycle()
         appViewModelStore.clear()

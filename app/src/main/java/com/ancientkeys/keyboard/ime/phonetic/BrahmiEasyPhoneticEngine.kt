@@ -19,6 +19,7 @@ object BrahmiEasyPhoneticEngine : EasyPhoneticEngine {
     override val engineName: String = "Brahmi Easy Phonetic"
     override val description: String = "Conversational English-to-Brahmi phonetic input with inherent 'a' and live vowel-sign composition."
 
+    private const val MAX_CACHE_ENTRIES = 256
     private val conversionCache = java.util.concurrent.ConcurrentHashMap<String, String>()
     private val candidateCache = java.util.concurrent.ConcurrentHashMap<String, List<PhoneticCandidate>>()
 
@@ -331,6 +332,9 @@ object BrahmiEasyPhoneticEngine : EasyPhoneticEngine {
         }
 
         val result = sb.toString()
+        if (conversionCache.size >= MAX_CACHE_ENTRIES) {
+            conversionCache.clear()
+        }
         conversionCache[rawInput] = result
         return result
     }
@@ -459,8 +463,16 @@ object BrahmiEasyPhoneticEngine : EasyPhoneticEngine {
 
         // Return distinct candidates preserving order
         val distinct = candidates.distinctBy { it.scriptResult }
+        if (candidateCache.size >= MAX_CACHE_ENTRIES) {
+            candidateCache.clear()
+        }
         candidateCache[rawInput] = distinct
         return distinct
+    }
+
+    override fun clearCache() {
+        conversionCache.clear()
+        candidateCache.clear()
     }
 }
 
