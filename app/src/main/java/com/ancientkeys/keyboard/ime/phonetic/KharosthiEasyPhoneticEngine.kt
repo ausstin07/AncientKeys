@@ -17,6 +17,9 @@ object KharosthiEasyPhoneticEngine : EasyPhoneticEngine {
     override val engineName: String = "Kharosthi Easy Phonetic"
     override val description: String = "Conversational English-to-Kharosthi phonetic input conforming to Gāndhārī Prakrit conventions."
 
+    private val conversionCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val candidateCache = java.util.concurrent.ConcurrentHashMap<String, List<PhoneticCandidate>>()
+
     // Independent Vowels (built upon base 𐨀)
     private val independentVowels = mapOf(
         "a" to "𐨀",
@@ -143,6 +146,7 @@ object KharosthiEasyPhoneticEngine : EasyPhoneticEngine {
 
     override fun convert(rawInput: String): String {
         if (rawInput.isEmpty()) return ""
+        conversionCache[rawInput]?.let { return it }
 
         val sb = StringBuilder()
         var i = 0
@@ -251,12 +255,15 @@ object KharosthiEasyPhoneticEngine : EasyPhoneticEngine {
             i += 1
         }
 
-        return sb.toString()
+        val result = sb.toString()
+        conversionCache[rawInput] = result
+        return result
     }
 
     override fun getCandidates(rawInput: String): List<PhoneticCandidate> {
         val trimmed = rawInput.lowercase().trim()
         if (trimmed.isEmpty()) return emptyList()
+        candidateCache[rawInput]?.let { return it }
 
         val primary = convert(trimmed)
         val candidates = mutableListOf<PhoneticCandidate>()
@@ -300,7 +307,9 @@ object KharosthiEasyPhoneticEngine : EasyPhoneticEngine {
             candidates.add(PhoneticCandidate("𐨰", "𐨰 (za)", "Iranian loan z"))
         }
 
-        return candidates.distinctBy { it.scriptResult }
+        val distinct = candidates.distinctBy { it.scriptResult }
+        candidateCache[rawInput] = distinct
+        return distinct
     }
 }
 

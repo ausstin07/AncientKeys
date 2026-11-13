@@ -333,6 +333,11 @@ private fun MultiModeKeyboardContent(
         userPrefs.getFavoriteKeysForScript(currentScript.id)
     }
 
+    val context = LocalContext.current
+    val scriptFont = remember(currentScript.id) {
+        HistoricalFontProvider.getFontFamily(context, currentScript.id)
+    }
+
     // Historical script visible keys
     val visibleKeys = remember(currentScript, selectedCategoryIndex, showFavoritesOnly, favoriteKeysSet) {
         if (showFavoritesOnly) {
@@ -859,23 +864,27 @@ private fun MultiModeKeyboardContent(
                             .padding(vertical = 2.dp),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // --- Dedicated Context-Sensitive Suggestion Strip for Easy Phonetic ---
-                        val primaryConverted = if (phoneticBuffer.isNotEmpty() && activePhoneticEngine != null) {
-                            activePhoneticEngine.convert(phoneticBuffer)
-                        } else {
-                            ""
-                        }
-                        val candidates = if (phoneticBuffer.isNotEmpty() && activePhoneticEngine != null) {
-                            remember(phoneticBuffer, activePhoneticEngine) {
-                                activePhoneticEngine.getCandidates(phoneticBuffer)
+                        // --- Dedicated Fixed-Height Suggestion Strip for Easy Phonetic ---
+                        val primaryConverted = remember(phoneticBuffer, activePhoneticEngine) {
+                            if (phoneticBuffer.isNotEmpty() && activePhoneticEngine != null) {
+                                activePhoneticEngine.convert(phoneticBuffer)
+                            } else {
+                                ""
                             }
-                        } else {
-                            emptyList()
+                        }
+                        val candidates = remember(phoneticBuffer, activePhoneticEngine) {
+                            if (phoneticBuffer.isNotEmpty() && activePhoneticEngine != null) {
+                                activePhoneticEngine.getCandidates(phoneticBuffer)
+                            } else {
+                                emptyList()
+                            }
                         }
 
+                        val phoneticStripHeight = if (isLandscape) 42.dp else 54.dp
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .height(phoneticStripHeight)
                                 .padding(horizontal = 4.dp, vertical = 2.dp),
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.ancientKeysColors.cardBackground
@@ -883,32 +892,46 @@ private fun MultiModeKeyboardContent(
                             border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Column(modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                            if (phoneticBuffer.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 8.dp),
+                                    contentAlignment = Alignment.CenterStart
                                 ) {
-                                    val context = LocalContext.current
-                                    val scriptFont = remember(currentScript.id) { HistoricalFontProvider.getFontFamily(context, currentScript.id) }
-
+                                    Text(
+                                        text = "Phonetic: type Roman letters (e.g. 'austin', 'namaste')...",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Normal,
+                                        color = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.6f)
+                                    )
+                                }
+                            } else {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                                    verticalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    // Row 1: Buffer preview + [✕] + [Commit ↵]
                                     Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.weight(1f)
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(24.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        if (phoneticBuffer.isEmpty()) {
-                                            Text(
-                                                text = "Phonetic: type Roman letters (e.g. 'austin', 'asoka')...",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                fontWeight = FontWeight.Normal,
-                                                color = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.6f)
-                                            )
-                                        } else {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
                                             Text(
                                                 text = phoneticBuffer,
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.ancientKeysColors.keyText
+                                                color = MaterialTheme.ancientKeysColors.keyText,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                             if (primaryConverted.isNotEmpty()) {
                                                 Text(
@@ -920,15 +943,15 @@ private fun MultiModeKeyboardContent(
                                                 Text(
                                                     text = primaryConverted,
                                                     fontFamily = scriptFont,
-                                                    fontSize = 20.sp,
+                                                    fontSize = 18.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground
+                                                    color = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
                                                 )
                                             }
                                         }
-                                    }
 
-                                    if (phoneticBuffer.isNotEmpty()) {
                                         Row(
                                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                                             verticalAlignment = Alignment.CenterVertically
@@ -955,7 +978,7 @@ private fun MultiModeKeyboardContent(
                                                     phoneticBuffer = ""
                                                 },
                                                 modifier = Modifier
-                                                    .height(26.dp)
+                                                    .height(24.dp)
                                                     .semantics { contentDescription = "Commit converted script to input" },
                                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                                                 colors = ButtonDefaults.buttonColors(
@@ -967,45 +990,45 @@ private fun MultiModeKeyboardContent(
                                             }
                                         }
                                     }
-                                }
 
-                                if (candidates.isNotEmpty()) {
+                                    // Row 2: Candidates row (bounded height, scrollable)
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .horizontalScroll(rememberScrollState())
-                                            .padding(top = 4.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            .height(20.dp)
+                                            .horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        val context = LocalContext.current
-                                        val scriptFont = remember(currentScript.id) { HistoricalFontProvider.getFontFamily(context, currentScript.id) }
-                                        candidates.forEach { cand ->
-                                            Surface(
-                                                shape = RoundedCornerShape(4.dp),
-                                                color = if (cand.isPrimary) MaterialTheme.ancientKeysColors.keyPrimaryActionBackground else MaterialTheme.ancientKeysColors.chipBackground,
-                                                modifier = Modifier.clickable {
-                                                    triggerHaptic()
-                                                    onKeyClick(ScriptKey(character = cand.scriptResult, unicodeCodePoint = currentScript.id.uppercase()))
-                                                    phoneticBuffer = ""
-                                                }
-                                            ) {
-                                                Row(
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
+                                        if (candidates.isNotEmpty()) {
+                                            candidates.forEach { cand ->
+                                                Surface(
+                                                    shape = RoundedCornerShape(4.dp),
+                                                    color = if (cand.isPrimary) MaterialTheme.ancientKeysColors.keyPrimaryActionBackground else MaterialTheme.ancientKeysColors.chipBackground,
+                                                    modifier = Modifier.clickable {
+                                                        triggerHaptic()
+                                                        onKeyClick(ScriptKey(character = cand.scriptResult, unicodeCodePoint = currentScript.id.uppercase()))
+                                                        phoneticBuffer = ""
+                                                    }
                                                 ) {
-                                                    Text(
-                                                        text = cand.scriptResult,
-                                                        fontFamily = scriptFont,
-                                                        fontSize = 16.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = if (cand.isPrimary) MaterialTheme.ancientKeysColors.keyPrimaryActionText else MaterialTheme.ancientKeysColors.chipText
-                                                    )
-                                                    Spacer(modifier = Modifier.width(3.dp))
-                                                    Text(
-                                                        text = cand.displayLabel,
-                                                        fontSize = 10.sp,
-                                                        color = (if (cand.isPrimary) MaterialTheme.ancientKeysColors.keyPrimaryActionText else MaterialTheme.ancientKeysColors.chipText).copy(alpha = 0.8f)
-                                                    )
+                                                    Row(
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(
+                                                            text = cand.scriptResult,
+                                                            fontFamily = scriptFont,
+                                                            fontSize = 13.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = if (cand.isPrimary) MaterialTheme.ancientKeysColors.keyPrimaryActionText else MaterialTheme.ancientKeysColors.chipText
+                                                        )
+                                                        Spacer(modifier = Modifier.width(3.dp))
+                                                        Text(
+                                                            text = cand.displayLabel,
+                                                            fontSize = 9.sp,
+                                                            color = (if (cand.isPrimary) MaterialTheme.ancientKeysColors.keyPrimaryActionText else MaterialTheme.ancientKeysColors.chipText).copy(alpha = 0.8f)
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
@@ -1058,10 +1081,27 @@ private fun MultiModeKeyboardContent(
                             .padding(vertical = 2.dp),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
+                        val transliterated = remember(romanizedBuffer, activeRomanizer) {
+                            if (romanizedBuffer.isNotEmpty() && activeRomanizer != null) {
+                                activeRomanizer.transliterateToken(romanizedBuffer)
+                            } else {
+                                ""
+                            }
+                        }
+                        val previews = remember(romanizedBuffer, activeRomanizer) {
+                            if (romanizedBuffer.isNotEmpty() && activeRomanizer != null) {
+                                activeRomanizer.getCompositionPreviews(romanizedBuffer)
+                            } else {
+                                emptyList()
+                            }
+                        }
+
                         // Composition & Transliteration Preview Header
+                        val romanizedStripHeight = if (isLandscape) 42.dp else 54.dp
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .height(romanizedStripHeight)
                                 .padding(horizontal = 4.dp, vertical = 2.dp),
                             colors = CardDefaults.cardColors(
                                 containerColor = MaterialTheme.ancientKeysColors.cardBackground
@@ -1069,78 +1109,112 @@ private fun MultiModeKeyboardContent(
                             border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Column(modifier = Modifier.padding(6.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                            if (romanizedBuffer.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 8.dp),
+                                    contentAlignment = Alignment.CenterStart
                                 ) {
-                                    val transliterated = if (romanizedBuffer.isNotEmpty() && activeRomanizer != null) {
-                                        activeRomanizer.transliterateToken(romanizedBuffer)
-                                    } else {
-                                        ""
-                                    }
-                                    val context = LocalContext.current
-                                    val scriptFont = remember(currentScript.id) { HistoricalFontProvider.getFontFamily(context, currentScript.id) }
-
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text(
-                                            text = if (romanizedBuffer.isEmpty()) "Type Latin (${activeRomanizer?.schemeName ?: "Romanized"})..." else romanizedBuffer,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontWeight = if (romanizedBuffer.isEmpty()) FontWeight.Normal else FontWeight.Bold,
-                                            color = if (romanizedBuffer.isEmpty()) MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.6f) else MaterialTheme.ancientKeysColors.keyText
-                                        )
-                                        if (transliterated.isNotEmpty()) {
-                                            Text(
-                                                text = " ➔ ",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.ancientKeysColors.glyphAccent
-                                            )
-                                            Text(
-                                                text = transliterated,
-                                                fontFamily = scriptFont,
-                                                fontSize = 20.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground
-                                            )
-                                        }
-                                    }
-
-                                    if (transliterated.isNotEmpty()) {
-                                        Button(
-                                            onClick = {
-                                                triggerHaptic()
-                                                onKeyClick(ScriptKey(character = transliterated, unicodeCodePoint = currentScript.id.uppercase()))
-                                                romanizedBuffer = ""
-                                            },
-                                            modifier = Modifier.height(28.dp),
-                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                                                contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
-                                            )
-                                        ) {
-                                            Text("Commit ↵", fontSize = 11.sp)
-                                        }
-                                    }
+                                    Text(
+                                        text = "Type Latin (${activeRomanizer?.schemeName ?: "Romanized"})...",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Normal,
+                                        color = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.6f)
+                                    )
                                 }
-
-                                // Matra / Composition Options bar
-                                if (romanizedBuffer.isNotEmpty() && activeRomanizer != null) {
-                                    val previews = remember(romanizedBuffer, activeRomanizer) { activeRomanizer.getCompositionPreviews(romanizedBuffer) }
-                                    if (previews.isNotEmpty()) {
+                            } else {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                                    verticalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    // Row 1: Preview + Commit
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(24.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
                                         Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .horizontalScroll(rememberScrollState())
-                                                .padding(top = 4.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f)
                                         ) {
-                                            val context = LocalContext.current
-                                            val scriptFont = remember(currentScript.id) { HistoricalFontProvider.getFontFamily(context, currentScript.id) }
+                                            Text(
+                                                text = romanizedBuffer,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.ancientKeysColors.keyText,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            if (transliterated.isNotEmpty()) {
+                                                Text(
+                                                    text = " ➔ ",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.ancientKeysColors.glyphAccent
+                                                )
+                                                Text(
+                                                    text = transliterated,
+                                                    fontFamily = scriptFont,
+                                                    fontSize = 18.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "✕",
+                                                modifier = Modifier
+                                                    .clickable {
+                                                        triggerHaptic()
+                                                        romanizedBuffer = ""
+                                                    }
+                                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                                                    .semantics { contentDescription = "Clear romanized buffer" },
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.error
+                                            )
+                                            Button(
+                                                onClick = {
+                                                    triggerHaptic()
+                                                    if (transliterated.isNotEmpty()) {
+                                                        onKeyClick(ScriptKey(character = transliterated, unicodeCodePoint = currentScript.id.uppercase()))
+                                                    }
+                                                    romanizedBuffer = ""
+                                                },
+                                                modifier = Modifier.height(24.dp),
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                                                    contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
+                                                )
+                                            ) {
+                                                Text("Commit ↵", fontSize = 11.sp)
+                                            }
+                                        }
+                                    }
+
+                                    // Row 2: Matra options (scrollable)
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(20.dp)
+                                            .horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        if (previews.isNotEmpty()) {
                                             previews.forEach { preview ->
                                                 Surface(
                                                     shape = RoundedCornerShape(4.dp),
@@ -1153,20 +1227,20 @@ private fun MultiModeKeyboardContent(
                                                     }
                                                 ) {
                                                     Row(
-                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
                                                         verticalAlignment = Alignment.CenterVertically
                                                     ) {
                                                         Text(
                                                             text = preview.scriptResult,
                                                             fontFamily = scriptFont,
-                                                            fontSize = 16.sp,
+                                                            fontSize = 13.sp,
                                                             fontWeight = FontWeight.Bold,
                                                             color = MaterialTheme.ancientKeysColors.chipText
                                                         )
                                                         Spacer(modifier = Modifier.width(3.dp))
                                                         Text(
-                                                            text = preview.latinInput,
-                                                            fontSize = 10.sp,
+                                                            text = preview.displayLabel,
+                                                            fontSize = 9.sp,
                                                             color = MaterialTheme.ancientKeysColors.chipText.copy(alpha = 0.8f)
                                                         )
                                                     }
@@ -1324,7 +1398,7 @@ private fun MultiModeKeyboardContent(
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Quick Mode Toggle / Mode Indicator (?123 / ABC)
+            // Slot 1: Quick Mode Toggle / Mode Indicator (?123 / ABC) — Stable weight 1.0f
             ImeActionKey(
                 onClick = {
                     when (keyboardMode) {
@@ -1344,7 +1418,7 @@ private fun MultiModeKeyboardContent(
                 },
                 onHaptic = ::triggerHaptic,
                 modifier = Modifier
-                    .weight(if (isHistorical) 1.3f else 1.25f)
+                    .weight(1.0f)
                     .fillMaxHeight(),
                 contentDescription = when (keyboardMode) {
                     KeyboardMode.ENGLISH_QWERTY -> "Switch to Numbers and Symbols"
@@ -1367,45 +1441,54 @@ private fun MultiModeKeyboardContent(
                 )
             }
 
-            // Comma (for English, Numbers, or Phonetic mode)
-            if (!isHistorical) {
-                ImeActionKey(
-                    onClick = {
-                        onKeyClick(ScriptKey(character = ",", unicodeCodePoint = "U+002C"))
-                    },
-                    onHaptic = ::triggerHaptic,
-                    modifier = Modifier
-                        .weight(0.9f)
-                        .fillMaxHeight(),
-                    contentDescription = "Comma"
-                ) {
-                    Text(",", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
+            // Slot 2: Left punctuation (Comma ',' in QWERTY, or Danda '𑁇' in Brahmi/Kharosthi) — Stable weight 0.8f
+            val leftPunctuation = if (isHistorical) {
+                if (currentScript.id == "brahmi" || currentScript.id == "kharosthi") "𑁇" else ","
+            } else ","
+            ImeActionKey(
+                onClick = {
+                    onKeyClick(ScriptKey(character = leftPunctuation, unicodeCodePoint = "U+%04X".format(leftPunctuation.codePointAt(0))))
+                },
+                onHaptic = ::triggerHaptic,
+                modifier = Modifier
+                    .weight(0.8f)
+                    .fillMaxHeight(),
+                contentDescription = if (isHistorical) "Script Punctuation" else "Comma"
+            ) {
+                Text(
+                    text = leftPunctuation,
+                    fontFamily = if (isHistorical) scriptFont else null,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
-            // Space Bar - Expands to weight 4.2f when Backspace is in Row 3, or 4.6f in Historical mode
-            val spaceWeight = if (isHistorical) 4.6f else 4.2f
-
+            // Slot 3: SPACEBAR — Fixed weight 5.0f across ALL modes (occupies ~58% of row width)
             ImeActionKey(
                 onClick = {
                     if (keyboardMode == KeyboardMode.EASY_PHONETIC && phoneticBuffer.isNotEmpty() && activePhoneticEngine != null) {
                         val converted = activePhoneticEngine.convert(phoneticBuffer)
-                        if (converted.isNotEmpty()) {
-                            onKeyClick(ScriptKey(character = converted, unicodeCodePoint = currentScript.id.uppercase()))
-                        }
                         phoneticBuffer = ""
+                        if (converted.isNotEmpty()) {
+                            onKeyClick(ScriptKey(character = "$converted ", unicodeCodePoint = currentScript.id.uppercase()))
+                        } else {
+                            onSpaceClick()
+                        }
                     } else if (keyboardMode == KeyboardMode.ROMANIZED && romanizedBuffer.isNotEmpty() && activeRomanizer != null) {
                         val transliterated = activeRomanizer.transliterateToken(romanizedBuffer)
-                        if (transliterated.isNotEmpty()) {
-                            onKeyClick(ScriptKey(character = transliterated, unicodeCodePoint = currentScript.id.uppercase()))
-                        }
                         romanizedBuffer = ""
+                        if (transliterated.isNotEmpty()) {
+                            onKeyClick(ScriptKey(character = "$transliterated ", unicodeCodePoint = currentScript.id.uppercase()))
+                        } else {
+                            onSpaceClick()
+                        }
+                    } else {
+                        onSpaceClick()
                     }
-                    onSpaceClick()
                 },
                 onHaptic = ::triggerHaptic,
                 modifier = Modifier
-                    .weight(spaceWeight)
+                    .weight(5.0f)
                     .fillMaxHeight(),
                 containerColor = MaterialTheme.ancientKeysColors.keyBackground,
                 contentColor = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.75f),
@@ -1426,27 +1509,11 @@ private fun MultiModeKeyboardContent(
                 )
             }
 
-            // Period (for English, Numbers, or Phonetic mode)
-            if (!isHistorical) {
-                ImeActionKey(
-                    onClick = {
-                        onKeyClick(ScriptKey(character = ".", unicodeCodePoint = "U+002E"))
-                    },
-                    onHaptic = ::triggerHaptic,
-                    modifier = Modifier
-                        .weight(0.9f)
-                        .fillMaxHeight(),
-                    contentDescription = "Period"
-                ) {
-                    Text(".", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            // Backspace (⌫) — ONLY visible in Historical mode (in English & Numbers, Backspace is on Row 3)
+            // Slot 4: Right symbol (Period '.' in QWERTY, or Backspace '⌫' in Historical) — Stable weight 0.8f
             if (isHistorical) {
                 Box(
                     modifier = Modifier
-                        .weight(1.4f)
+                        .weight(0.8f)
                         .fillMaxHeight()
                 ) {
                     RepeatKeyButton(
@@ -1461,9 +1528,22 @@ private fun MultiModeKeyboardContent(
                         Text("⌫", fontSize = if (isLandscape) 14.sp else 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
+            } else {
+                ImeActionKey(
+                    onClick = {
+                        onKeyClick(ScriptKey(character = ".", unicodeCodePoint = "U+002E"))
+                    },
+                    onHaptic = ::triggerHaptic,
+                    modifier = Modifier
+                        .weight(0.8f)
+                        .fillMaxHeight(),
+                    contentDescription = "Period"
+                ) {
+                    Text(".", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
             }
 
-            // Enter / Action Key - Prominent Sage Primary Action Key matching EditorInfo semantics
+            // Slot 5: Enter / Action Key — Stable weight 1.4f
             val actionInfo = remember(editorInfo) { ImeInputHelper.getImeActionInfo(editorInfo) }
             ImeActionKey(
                 onClick = {
@@ -1484,7 +1564,7 @@ private fun MultiModeKeyboardContent(
                 },
                 onHaptic = ::triggerHaptic,
                 modifier = Modifier
-                    .weight(1.8f)
+                    .weight(1.4f)
                     .fillMaxHeight(),
                 containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
                 contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
@@ -1492,7 +1572,7 @@ private fun MultiModeKeyboardContent(
             ) {
                 Text(
                     text = if (isLandscape) actionInfo.compactLabel else actionInfo.displayLabel,
-                    fontSize = if (isLandscape) 13.sp else 12.5.sp,
+                    fontSize = if (isLandscape) 13.sp else 12.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1
                 )
@@ -1788,9 +1868,13 @@ private fun QwertyKey(
                         isPressed = false
 
                         if (up != null) {
-                            up.consume()
-                            if (!longPressTriggered) {
-                                currentOnClick()
+                            val isInside = up.position.x in 0f..size.width.toFloat() &&
+                                           up.position.y in 0f..size.height.toFloat()
+                            if (isInside) {
+                                up.consume()
+                                if (!longPressTriggered) {
+                                    currentOnClick()
+                                }
                             }
                         }
                     }
@@ -1877,8 +1961,12 @@ private fun ImeActionKey(
                         val up = waitForUpOrCancellation()
                         isPressed = false
                         if (up != null) {
-                            up.consume()
-                            currentOnClick()
+                            val isInside = up.position.x in 0f..size.width.toFloat() &&
+                                           up.position.y in 0f..size.height.toFloat()
+                            if (isInside) {
+                                up.consume()
+                                currentOnClick()
+                            }
                         }
                     }
                 }
@@ -1948,8 +2036,12 @@ private fun ImeKeyItem(
                         val up = waitForUpOrCancellation()
                         isPressed = false
                         if (up != null) {
-                            up.consume()
-                            currentOnClick()
+                            val isInside = up.position.x in 0f..size.width.toFloat() &&
+                                           up.position.y in 0f..size.height.toFloat()
+                            if (isInside) {
+                                up.consume()
+                                currentOnClick()
+                            }
                         }
                     }
                 }

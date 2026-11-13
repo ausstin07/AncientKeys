@@ -19,6 +19,9 @@ object BrahmiEasyPhoneticEngine : EasyPhoneticEngine {
     override val engineName: String = "Brahmi Easy Phonetic"
     override val description: String = "Conversational English-to-Brahmi phonetic input with inherent 'a' and live vowel-sign composition."
 
+    private val conversionCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val candidateCache = java.util.concurrent.ConcurrentHashMap<String, List<PhoneticCandidate>>()
+
     // Common historical words & royal names where conversational English spelling uses 's' for Sanskrit 'ś'
     private val wordOverrides = mapOf(
         "asoka" to "𑀅𑀰𑁄𑀓",
@@ -163,6 +166,7 @@ object BrahmiEasyPhoneticEngine : EasyPhoneticEngine {
 
     override fun convert(rawInput: String): String {
         if (rawInput.isEmpty()) return ""
+        conversionCache[rawInput]?.let { return it }
 
         val sb = StringBuilder()
         var i = 0
@@ -326,12 +330,15 @@ object BrahmiEasyPhoneticEngine : EasyPhoneticEngine {
             i += 1
         }
 
-        return sb.toString()
+        val result = sb.toString()
+        conversionCache[rawInput] = result
+        return result
     }
 
     override fun getCandidates(rawInput: String): List<PhoneticCandidate> {
         val trimmed = rawInput.lowercase().trim()
         if (trimmed.isEmpty()) return emptyList()
+        candidateCache[rawInput]?.let { return it }
 
         val primary = convert(trimmed)
         val candidates = mutableListOf<PhoneticCandidate>()
@@ -451,7 +458,9 @@ object BrahmiEasyPhoneticEngine : EasyPhoneticEngine {
         }
 
         // Return distinct candidates preserving order
-        return candidates.distinctBy { it.scriptResult }
+        val distinct = candidates.distinctBy { it.scriptResult }
+        candidateCache[rawInput] = distinct
+        return distinct
     }
 }
 
