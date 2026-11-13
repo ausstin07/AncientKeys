@@ -104,7 +104,7 @@ object HistoricalLibraryData {
                     historicalSignificance = "One of the most intensely studied early Brahmi epigraphs in Buddhist history."
                 )
             ),
-            consonantVowelMechanics = "Every consonant letter possesses an inherent /a/ vowel sound (e.g. 𑀓 = ka). To express a different vowel, modifying diacritical marks (matras) are attached above, below, or beside the consonant (e.g. 𑀓\uD804\uDC39 = ki, 𑀓\uD804\uDC3B = ku, 𑀓\uD804\uDC3E = ke). Initial vowels that occur at the start of a word use independent full vowel letters (𑀅 = a, 𑀇 = i, 𑀉 = u). A virama sign silences the inherent vowel for consonant clusters.",
+            consonantVowelMechanics = "Every consonant letter possesses an inherent /a/ vowel sound (e.g. 𑀓 = ka). To express a different vowel, modifying diacritical marks (matras) are attached above, below, or beside the consonant (e.g. 𑀓\uD804\uDC3A = ki, 𑀓\uD804\uDC3C = ku, 𑀓\uD804\uDC42 = ke). Initial vowels that occur at the start of a word use independent full vowel letters (𑀅 = a, 𑀇 = i, 𑀉 = u). A virama sign silences the inherent vowel for consonant clusters.",
             numeralConventions = "Brahmi created the direct ancestors of modern numerals! The system featured additive number signs for 1–9, 10–90, 100, and 1000, alongside early decimal zero and digits (0–9) documented in late Brahmi epigraphy.",
             keyHistoricalDevelopments = listOf(
                 "c. 3rd Century BCE: Emperor Ashoka standardizes Brahmi across the Maurya Empire.",
@@ -395,7 +395,7 @@ To make historical scripts accessible to everyone—from high school students to
 - **How it works**: Users type natural English approximations:
   - `ka` $\rightarrow$ 𑀓
   - `kaa` $\rightarrow$ 𑀓\uD804\uDC38
-  - `ki` $\rightarrow$ 𑀓\uD804\uDC39
+  - `ki` $\rightarrow$ 𑀓\uD804\uDC3A
   - `th` $\rightarrow$ θ
   - `sh` $\rightarrow$ 𑀰
 - **Ambiguity Resolution**: When a sound has multiple historical equivalents (e.g., dental `t` vs retroflex `ṭ`), the keyboard immediately displays alternative candidate chips in the suggestion strip.

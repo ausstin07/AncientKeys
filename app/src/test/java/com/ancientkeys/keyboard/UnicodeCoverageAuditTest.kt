@@ -38,7 +38,7 @@ class UnicodeCoverageAuditTest {
         val brahmiReport = auditList.first { it.scriptId == "brahmi" }
 
         assertEquals(109, brahmiReport.totalUnicodeAllocated)
-        assertEquals(91, brahmiReport.ancientKeysSupportedCount)
+        assertEquals(92, brahmiReport.ancientKeysSupportedCount)
         assertTrue(brahmiReport.coverageCategoryDescription.contains("Numerals"))
         assertTrue(brahmiReport.coverageCategoryDescription.contains("Decimal Digits"))
     }

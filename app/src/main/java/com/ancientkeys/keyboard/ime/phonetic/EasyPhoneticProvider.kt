@@ -29,5 +29,11 @@ object EasyPhoneticProvider {
     }
 
     fun getAllSupportedScriptIds(): List<String> = listOf("brahmi", "kharosthi", "greek")
+
+    fun clearAllCaches() {
+        BrahmiEasyPhoneticEngine.clearCache()
+        KharosthiEasyPhoneticEngine.clearCache()
+        GreekEasyPhoneticEngine.clearCache()
+    }
 }
 

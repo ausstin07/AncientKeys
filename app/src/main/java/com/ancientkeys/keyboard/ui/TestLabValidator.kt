@@ -89,12 +89,12 @@ object TestLabValidator {
 
         // Check 5: Brahmi Romanizer verification
         val asokaTranslit = BrahmiRomanizer.transliterateToken("asoka")
-        val romanizerValid = asokaTranslit == "𑀅𑀲\uD804\uDC40𑀓"
+        val romanizerValid = asokaTranslit == "𑀅𑀲\uD804\uDC44𑀓"
         results.add(
             TestLabCheckResult(
                 name = "Brahmi Romanized Input",
                 passed = romanizerValid,
-                details = if (romanizerValid) "'asoka' transliterates accurately to '𑀅𑀲\uD804\uDC40𑀓'"
+                details = if (romanizerValid) "'asoka' transliterates accurately to '𑀅𑀲\uD804\uDC44𑀓'"
                 else "FAILURE: Romanizer output was '$asokaTranslit'",
                 actionableResolution = if (romanizerValid) "" else "Check BrahmiRomanizer consonant & vowel sign composition logic"
             )

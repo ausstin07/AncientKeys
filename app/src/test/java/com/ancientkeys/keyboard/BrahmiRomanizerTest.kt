@@ -69,16 +69,16 @@ class BrahmiRomanizerTest {
     fun testDependentVowelSigns() {
         assertEquals("𑀓\uD804\uDC38", BrahmiRomanizer.transliterateToken("kā"))
         assertEquals("𑀓\uD804\uDC38", BrahmiRomanizer.transliterateToken("kaa"))
-        assertEquals("𑀓\uD804\uDC39", BrahmiRomanizer.transliterateToken("ki"))
-        assertEquals("𑀓\uD804\uDC3A", BrahmiRomanizer.transliterateToken("kī"))
-        assertEquals("𑀓\uD804\uDC3A", BrahmiRomanizer.transliterateToken("kii"))
-        assertEquals("𑀓\uD804\uDC3B", BrahmiRomanizer.transliterateToken("ku"))
-        assertEquals("𑀓\uD804\uDC3C", BrahmiRomanizer.transliterateToken("kū"))
-        assertEquals("𑀓\uD804\uDC3C", BrahmiRomanizer.transliterateToken("kuu"))
-        assertEquals("𑀓\uD804\uDC3E", BrahmiRomanizer.transliterateToken("ke"))
-        assertEquals("𑀓\uD804\uDC3F", BrahmiRomanizer.transliterateToken("kai"))
-        assertEquals("𑀓\uD804\uDC40", BrahmiRomanizer.transliterateToken("ko"))
-        assertEquals("𑀓\uD804\uDC41", BrahmiRomanizer.transliterateToken("kau"))
+        assertEquals("𑀓\uD804\uDC3A", BrahmiRomanizer.transliterateToken("ki"))
+        assertEquals("𑀓\uD804\uDC3B", BrahmiRomanizer.transliterateToken("kī"))
+        assertEquals("𑀓\uD804\uDC3B", BrahmiRomanizer.transliterateToken("kii"))
+        assertEquals("𑀓\uD804\uDC3C", BrahmiRomanizer.transliterateToken("ku"))
+        assertEquals("𑀓\uD804\uDC3D", BrahmiRomanizer.transliterateToken("kū"))
+        assertEquals("𑀓\uD804\uDC3D", BrahmiRomanizer.transliterateToken("kuu"))
+        assertEquals("𑀓\uD804\uDC42", BrahmiRomanizer.transliterateToken("ke"))
+        assertEquals("𑀓\uD804\uDC43", BrahmiRomanizer.transliterateToken("kai"))
+        assertEquals("𑀓\uD804\uDC44", BrahmiRomanizer.transliterateToken("ko"))
+        assertEquals("𑀓\uD804\uDC45", BrahmiRomanizer.transliterateToken("kau"))
     }
 
     @Test
@@ -93,11 +93,11 @@ class BrahmiRomanizerTest {
     fun testHistoricalWords() {
         // "asoka" -> 'a' (𑀅) + 'so' (𑀲𑁄) + 'ka' (𑀓)
         val asoka = BrahmiRomanizer.transliterateToken("asoka")
-        assertEquals("𑀅𑀲\uD804\uDC40𑀓", asoka)
+        assertEquals("𑀅𑀲\uD804\uDC44𑀓", asoka)
 
-        // "deva" -> 'de' (𑀤𑀾) + 'va' (𑀯)
+        // "deva" -> 'de' (𑀤𑁂) + 'va' (𑀯)
         val deva = BrahmiRomanizer.transliterateToken("deva")
-        assertEquals("𑀤\uD804\uDC3E𑀯", deva)
+        assertEquals("𑀤\uD804\uDC42𑀯", deva)
     }
 
     @Test
@@ -123,6 +123,6 @@ class BrahmiRomanizerTest {
         assertEquals("", BrahmiRomanizer.transliterateToken(""))
         assertEquals("", BrahmiRomanizer.transliterateToken("   "))
         assertEquals("𑀓", BrahmiRomanizer.transliterateToken("KA"))
-        assertEquals("𑀓\uD804\uDC39", BrahmiRomanizer.transliterateToken("Ki"))
+        assertEquals("𑀓\uD804\uDC3A", BrahmiRomanizer.transliterateToken("Ki"))
     }
 }

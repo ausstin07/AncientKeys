@@ -1,14 +1,13 @@
 package com.ancientkeys.keyboard.ui
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,22 +25,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,10 +43,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -61,15 +58,24 @@ import androidx.compose.ui.unit.sp
 import com.ancientkeys.keyboard.model.ResearchRecord
 import com.ancientkeys.keyboard.model.ScriptRegistry
 import com.ancientkeys.keyboard.storage.ResearchRecordRepository
+import com.ancientkeys.keyboard.ui.components.AncientKeysCard
+import com.ancientkeys.keyboard.ui.components.AncientKeysIconButton
+import com.ancientkeys.keyboard.ui.theme.AncientKeysDesignTokens
+import com.ancientkeys.keyboard.ui.theme.ancientKeysColors
 import com.ancientkeys.keyboard.util.HistoricalFontProvider
 
 /**
- * Dedicated offline Research Screen for epigraphers, linguists, and researchers.
+ * AncientKeys v1.1 Research Workspace Screen matching the Scholarly Calm design identity.
  *
- * Supports independent fields for original historical scripts, academic transliteration,
- * human translation, source corpus reference, and epigraphic commentary.
+ * Implements:
+ * - Professional header with back navigation (`‹`)
+ * - Inscription corpus manager with real-time text and citation search
+ * - Full-featured editor for original historical scripts, academic transliterations,
+ *   researcher translations, corpus citations, and epigraphic commentary
+ * - 1-tap clipboard copying for original characters, transliterations, and translations
+ * - Scholarly Markdown export (single record and full corpus batch)
+ * - 100% app-local storage without network transmission
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResearchWorkspaceScreen(
     onBackClick: () -> Unit
@@ -89,42 +95,82 @@ fun ResearchWorkspaceScreen(
         recordsList = repository.getAllRecords()
     }
 
+    // Intercept hardware/gesture Back
+    BackHandler {
+        if (isEditing) {
+            isEditing = false
+            activeRecord = null
+        } else {
+            onBackClick()
+        }
+    }
+
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = if (isEditing) "Edit Inscription Record" else "📜 Research Workspace",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = {
-                        if (isEditing) {
-                            isEditing = false
-                            activeRecord = null
-                        } else {
-                            onBackClick()
+            Surface(
+                color = MaterialTheme.colorScheme.background,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AncientKeysIconButton(
+                            onClick = {
+                                if (isEditing) {
+                                    isEditing = false
+                                    activeRecord = null
+                                } else {
+                                    onBackClick()
+                                }
+                            },
+                            contentDescription = "Navigate Back",
+                            size = 40.dp
+                        ) {
+                            Text(
+                                text = "‹",
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.Light,
+                                color = MaterialTheme.ancientKeysColors.keyText
+                            )
                         }
-                    }) {
-                        Text("←", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        Column {
+                            Text(
+                                text = if (isEditing) "Edit Inscription" else "Research Workspace",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.ancientKeysColors.keyText
+                            )
+                            Text(
+                                text = if (isEditing) "Corpus documentation & epigraphy" else "Offline epigraphic notebook (${recordsList.size})",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.ancientKeysColors.chipText
+                            )
+                        }
                     }
-                },
-                actions = {
+
                     if (!isEditing && recordsList.isNotEmpty()) {
-                        TextButton(onClick = {
-                            exportDialogContent = repository.exportAllToMarkdown()
-                        }) {
-                            Text("Export All", fontWeight = FontWeight.SemiBold)
+                        OutlinedButton(
+                            onClick = {
+                                exportDialogContent = repository.exportAllToMarkdown()
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder)
+                        ) {
+                            Text("Export All", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.ancientKeysColors.keyText)
                         }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            )
+                }
+            }
         }
     ) { innerPadding ->
         Box(
@@ -167,7 +213,7 @@ fun ResearchWorkspaceScreen(
                     onNewRecordClick = {
                         activeRecord = ResearchRecord(
                             title = "",
-                            scriptId = "brahmi",
+                            scriptId = "greek",
                             originalText = "",
                             academicTransliteration = "",
                             researcherTranslation = "",
@@ -190,8 +236,8 @@ fun ResearchWorkspaceScreen(
             if (recordToDelete != null) {
                 AlertDialog(
                     onDismissRequest = { recordToDelete = null },
-                    title = { Text("Delete Inscription Record?") },
-                    text = { Text("Are you sure you want to permanently delete \"${recordToDelete?.title}\"? This action cannot be undone.") },
+                    title = { Text("Delete Inscription Record?", fontWeight = FontWeight.Bold, fontSize = 16.sp) },
+                    text = { Text("Are you sure you want to permanently delete \"${recordToDelete?.title}\"? This action cannot be undone.", fontSize = 13.sp) },
                     confirmButton = {
                         Button(
                             onClick = {
@@ -202,50 +248,63 @@ fun ResearchWorkspaceScreen(
                                 activeRecord = null
                                 Toast.makeText(context, "Record deleted", Toast.LENGTH_SHORT).show()
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                            shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("Delete")
+                            Text("Delete", fontSize = 12.sp)
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = { recordToDelete = null }) {
-                            Text("Cancel")
+                            Text("Cancel", fontSize = 12.sp)
                         }
                     }
                 )
             }
 
-            // Export Dialog (Markdown / JSON Viewer & Copy)
+            // Export Dialog (Markdown Viewer & Copy)
             if (exportDialogContent != null) {
                 AlertDialog(
                     onDismissRequest = { exportDialogContent = null },
-                    title = { Text("Exported Scholarly Markdown") },
+                    title = { Text("Exported Scholarly Markdown", fontWeight = FontWeight.Bold, fontSize = 16.sp) },
                     text = {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(320.dp)
+                                .height(300.dp)
                                 .verticalScroll(rememberScrollState())
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.ancientKeysColors.chipBackground)
+                                .padding(10.dp)
                         ) {
                             Text(
                                 text = exportDialogContent ?: "",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                color = MaterialTheme.ancientKeysColors.keyText,
+                                lineHeight = 16.sp
                             )
                         }
                     },
                     confirmButton = {
-                        Button(onClick = {
-                            clipboardManager.setText(AnnotatedString(exportDialogContent ?: ""))
-                            Toast.makeText(context, "Export copied to clipboard", Toast.LENGTH_SHORT).show()
-                            exportDialogContent = null
-                        }) {
-                            Text("📋 Copy to Clipboard")
+                        Button(
+                            onClick = {
+                                clipboardManager.setText(AnnotatedString(exportDialogContent ?: ""))
+                                Toast.makeText(context, "Export copied to clipboard", Toast.LENGTH_SHORT).show()
+                                exportDialogContent = null
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                                contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
+                            )
+                        ) {
+                            Text("📋 Copy to Clipboard", fontSize = 12.sp)
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = { exportDialogContent = null }) {
-                            Text("Close")
+                            Text("Close", fontSize = 12.sp)
                         }
                     }
                 )
@@ -253,6 +312,10 @@ fun ResearchWorkspaceScreen(
         }
     }
 }
+
+// ==========================================
+// RECORDS LIST VIEW
+// ==========================================
 
 @Composable
 private fun RecordListView(
@@ -282,43 +345,50 @@ private fun RecordListView(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // Top Info & New Inscription Row
+        // Top Action Row: Count & New Record Button
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text(
-                    text = "Inscription Corpus (${records.size})",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "App-local private storage; 0 network access",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(
+                text = "Inscription Corpus (${records.size})",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.ancientKeysColors.keyText
+            )
+
             Button(
                 onClick = onNewRecordClick,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                    contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
+                ),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
             ) {
-                Text("+ New Record", fontWeight = FontWeight.Bold)
+                Text("+ New Record", fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
 
-        // Search Field
+        // Search Bar
         OutlinedTextField(
             value = searchQuery,
             onValueChange = onSearchQueryChange,
-            placeholder = { Text("Search records, inscriptions, or citations...") },
+            placeholder = { Text("Search records, inscriptions, or citations...", fontSize = 12.sp, color = MaterialTheme.ancientKeysColors.chipText) },
+            leadingIcon = { Text("🔍", fontSize = 14.sp) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            shape = RoundedCornerShape(8.dp)
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.ancientKeysColors.cardBackground,
+                unfocusedContainerColor = MaterialTheme.ancientKeysColors.cardBackground,
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.ancientKeysColors.cardBorder
+            )
         )
 
         if (filteredRecords.isEmpty()) {
@@ -328,30 +398,38 @@ private fun RecordListView(
                     .weight(1f),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(24.dp)
+                ) {
                     Text(
                         text = if (records.isEmpty()) "No inscription research records yet" else "No matching records found",
-                        style = MaterialTheme.typography.bodyMedium,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.ancientKeysColors.keyText
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Document original scripts, epigraphic notes, and translations securely offline.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = "Document original scripts, epigraphic notes, and transliterations securely offline.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.ancientKeysColors.chipText,
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(14.dp))
-                    OutlinedButton(onClick = onNewRecordClick) {
-                        Text("Create First Inscription Record")
+                    OutlinedButton(
+                        onClick = onNewRecordClick,
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder)
+                    ) {
+                        Text("Create First Inscription Record", fontSize = 12.sp, color = MaterialTheme.ancientKeysColors.keyText)
                     }
                 }
             }
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(bottom = 16.dp)
             ) {
                 items(filteredRecords, key = { it.id }) { record ->
                     val context = LocalContext.current
@@ -359,12 +437,13 @@ private fun RecordListView(
                         HistoricalFontProvider.getFontFamily(context, record.scriptId)
                     }
 
-                    Card(
+                    AncientKeysCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onRecordClick(record) },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        shape = RoundedCornerShape(14.dp),
+                        containerColor = MaterialTheme.ancientKeysColors.cardBackground,
+                        borderColor = MaterialTheme.ancientKeysColors.cardBorder
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Row(
@@ -374,22 +453,24 @@ private fun RecordListView(
                             ) {
                                 Text(
                                     text = record.title.ifBlank { "Untitled Inscription" },
-                                    style = MaterialTheme.typography.titleMedium,
+                                    fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.ancientKeysColors.keyText,
                                     modifier = Modifier.weight(1f),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
+
                                 Surface(
-                                    shape = RoundedCornerShape(4.dp),
-                                    color = MaterialTheme.colorScheme.primaryContainer
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = MaterialTheme.ancientKeysColors.chipSelectedBackground
                                 ) {
                                     Text(
                                         text = record.scriptId.uppercase(),
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                        style = MaterialTheme.typography.labelSmall,
+                                        fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        color = MaterialTheme.ancientKeysColors.chipSelectedText
                                     )
                                 }
                             }
@@ -398,7 +479,8 @@ private fun RecordListView(
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = record.sourceReference,
-                                    style = MaterialTheme.typography.bodySmall,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
                                     color = MaterialTheme.colorScheme.primary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -411,6 +493,8 @@ private fun RecordListView(
                                     text = record.originalText,
                                     fontFamily = scriptFont,
                                     fontSize = 18.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.ancientKeysColors.keyText,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -420,28 +504,40 @@ private fun RecordListView(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = record.academicTransliteration,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.ancientKeysColors.chipText,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                TextButton(onClick = { onDeleteRecord(record) }) {
-                                    Text("Delete", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                                TextButton(
+                                    onClick = { onDeleteRecord(record) },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text("Delete", color = MaterialTheme.colorScheme.error, fontSize = 11.sp)
                                 }
+
                                 Spacer(modifier = Modifier.width(6.dp))
+
                                 Button(
                                     onClick = { onRecordClick(record) },
                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                    modifier = Modifier.height(32.dp)
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.height(30.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                                        contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
+                                    )
                                 ) {
-                                    Text("Open / Edit", fontSize = 12.sp)
+                                    Text("Open / Edit", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                                 }
                             }
                         }
@@ -451,6 +547,10 @@ private fun RecordListView(
         }
     }
 }
+
+// ==========================================
+// RECORD EDITOR VIEW
+// ==========================================
 
 @Composable
 private fun RecordEditorView(
@@ -464,7 +564,7 @@ private fun RecordEditorView(
     val clipboardManager = LocalClipboardManager.current
 
     var title by rememberSaveable { mutableStateOf(record?.title ?: "") }
-    var scriptId by rememberSaveable { mutableStateOf(record?.scriptId ?: "brahmi") }
+    var scriptId by rememberSaveable { mutableStateOf(record?.scriptId ?: "greek") }
     var sourceReference by rememberSaveable { mutableStateOf(record?.sourceReference ?: "") }
     var originalText by rememberSaveable { mutableStateOf(record?.originalText ?: "") }
     var academicTransliteration by rememberSaveable { mutableStateOf(record?.academicTransliteration ?: "") }
@@ -487,10 +587,11 @@ private fun RecordEditorView(
         OutlinedTextField(
             value = title,
             onValueChange = { title = it },
-            label = { Text("Inscription Title / Label *") },
-            placeholder = { Text("e.g. Major Rock Edict XIII (Girnar)") },
+            label = { Text("Inscription Title / Label *", fontSize = 12.sp) },
+            placeholder = { Text("e.g. Rosetta Stone Decree or Ashokan Pillar", fontSize = 12.sp) },
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            singleLine = true,
+            shape = RoundedCornerShape(10.dp)
         )
 
         // Script Selector Dropdown & Source Reference Row
@@ -502,10 +603,12 @@ private fun RecordEditorView(
             Box(modifier = Modifier.weight(1f)) {
                 OutlinedButton(
                     onClick = { isScriptDropdownExpanded = true },
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     val scriptName = ScriptRegistry.getScriptById(scriptId)?.name ?: scriptId.uppercase()
-                    Text("Script: $scriptName ▾", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("Script: $scriptName ▾", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
                 }
 
                 DropdownMenu(
@@ -514,7 +617,7 @@ private fun RecordEditorView(
                 ) {
                     ScriptRegistry.allScripts.forEach { script ->
                         DropdownMenuItem(
-                            text = { Text(script.name) },
+                            text = { Text(script.name, fontSize = 12.sp) },
                             onClick = {
                                 scriptId = script.id
                                 isScriptDropdownExpanded = false
@@ -527,20 +630,22 @@ private fun RecordEditorView(
             OutlinedTextField(
                 value = sourceReference,
                 onValueChange = { sourceReference = it },
-                label = { Text("Corpus Reference") },
-                placeholder = { Text("CIG 1234, CII Vol. II") },
+                label = { Text("Corpus Reference", fontSize = 12.sp) },
+                placeholder = { Text("CIG 1234, CII Vol. II", fontSize = 12.sp) },
                 modifier = Modifier.weight(1f),
-                singleLine = true
+                singleLine = true,
+                shape = RoundedCornerShape(10.dp)
             )
         }
 
-        // Original Script Text Field (with Copy Button)
-        Card(
+        // Original Script Text Field
+        AncientKeysCard(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
-            shape = RoundedCornerShape(8.dp)
+            shape = RoundedCornerShape(12.dp),
+            containerColor = MaterialTheme.ancientKeysColors.cardBackground,
+            borderColor = MaterialTheme.ancientKeysColors.cardBorder
         ) {
-            Column(modifier = Modifier.padding(10.dp)) {
+            Column(modifier = Modifier.padding(12.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -550,41 +655,46 @@ private fun RecordEditorView(
                         text = "Original Inscription Characters",
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.ancientKeysColors.keyText
                     )
                     OutlinedButton(
                         onClick = {
                             clipboardManager.setText(AnnotatedString(originalText))
                             Toast.makeText(context, "Original characters copied", Toast.LENGTH_SHORT).show()
                         },
-                        modifier = Modifier.height(28.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                        modifier = Modifier.height(26.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(6.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder)
                     ) {
-                        Text("📋 Copy Original", fontSize = 11.sp)
+                        Text("📋 Copy", fontSize = 10.sp, color = MaterialTheme.ancientKeysColors.keyText)
                     }
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = originalText,
                     onValueChange = { originalText = it },
-                    placeholder = { Text("Enter or paste historical characters...") },
+                    placeholder = { Text("Enter or paste historical characters...", fontSize = 12.sp) },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3,
+                    shape = RoundedCornerShape(8.dp),
                     textStyle = TextStyle(
                         fontFamily = currentScriptFont,
-                        fontSize = 20.sp
+                        fontSize = 20.sp,
+                        lineHeight = 28.sp
                     )
                 )
             }
         }
 
-        // Academic Transliteration Field (with Copy Button)
-        Card(
+        // Academic Transliteration Field
+        AncientKeysCard(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
-            shape = RoundedCornerShape(8.dp)
+            shape = RoundedCornerShape(12.dp),
+            containerColor = MaterialTheme.ancientKeysColors.cardBackground,
+            borderColor = MaterialTheme.ancientKeysColors.cardBorder
         ) {
-            Column(modifier = Modifier.padding(10.dp)) {
+            Column(modifier = Modifier.padding(12.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -594,37 +704,41 @@ private fun RecordEditorView(
                         text = "Academic Transliteration",
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.ancientKeysColors.keyText
                     )
                     OutlinedButton(
                         onClick = {
                             clipboardManager.setText(AnnotatedString(academicTransliteration))
                             Toast.makeText(context, "Transliteration copied", Toast.LENGTH_SHORT).show()
                         },
-                        modifier = Modifier.height(28.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                        modifier = Modifier.height(26.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(6.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder)
                     ) {
-                        Text("📋 Copy Transliteration", fontSize = 11.sp)
+                        Text("📋 Copy", fontSize = 10.sp, color = MaterialTheme.ancientKeysColors.keyText)
                     }
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = academicTransliteration,
                     onValueChange = { academicTransliteration = it },
-                    placeholder = { Text("e.g. devānaṃpriya priyadarśī rājā...") },
+                    placeholder = { Text("e.g. devānaṃpriya priyadarśī rājā...", fontSize = 12.sp) },
                     modifier = Modifier.fillMaxWidth(),
-                    minLines = 2
+                    minLines = 2,
+                    shape = RoundedCornerShape(8.dp)
                 )
             }
         }
 
         // Researcher Translation (Manual)
-        Card(
+        AncientKeysCard(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
-            shape = RoundedCornerShape(8.dp)
+            shape = RoundedCornerShape(12.dp),
+            containerColor = MaterialTheme.ancientKeysColors.cardBackground,
+            borderColor = MaterialTheme.ancientKeysColors.cardBorder
         ) {
-            Column(modifier = Modifier.padding(10.dp)) {
+            Column(modifier = Modifier.padding(12.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -635,12 +749,12 @@ private fun RecordEditorView(
                             text = "Researcher Translation (Manual)",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.ancientKeysColors.keyText
                         )
                         Text(
-                            text = "Human translation; AncientKeys does not perform machine translation.",
+                            text = "Human translation; 0 network/machine translation.",
                             fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.ancientKeysColors.chipText
                         )
                     }
                     OutlinedButton(
@@ -648,19 +762,22 @@ private fun RecordEditorView(
                             clipboardManager.setText(AnnotatedString(researcherTranslation))
                             Toast.makeText(context, "Translation copied", Toast.LENGTH_SHORT).show()
                         },
-                        modifier = Modifier.height(28.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                        modifier = Modifier.height(26.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                        shape = RoundedCornerShape(6.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder)
                     ) {
-                        Text("📋 Copy Translation", fontSize = 11.sp)
+                        Text("📋 Copy", fontSize = 10.sp, color = MaterialTheme.ancientKeysColors.keyText)
                     }
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 OutlinedTextField(
                     value = researcherTranslation,
                     onValueChange = { researcherTranslation = it },
-                    placeholder = { Text("Enter your English / target language translation...") },
+                    placeholder = { Text("Enter your translation...", fontSize = 12.sp) },
                     modifier = Modifier.fillMaxWidth(),
-                    minLines = 3
+                    minLines = 3,
+                    shape = RoundedCornerShape(8.dp)
                 )
             }
         }
@@ -669,26 +786,28 @@ private fun RecordEditorView(
         OutlinedTextField(
             value = notes,
             onValueChange = { notes = it },
-            label = { Text("Epigraphic Commentary, Dialect & Notes") },
-            placeholder = { Text("Palaeographic features, rock medium, dating, alternate readings...") },
+            label = { Text("Epigraphic Commentary, Dialect & Notes", fontSize = 12.sp) },
+            placeholder = { Text("Palaeographic features, stone medium, dating, alternate readings...", fontSize = 12.sp) },
             modifier = Modifier.fillMaxWidth(),
-            minLines = 3
+            minLines = 3,
+            shape = RoundedCornerShape(10.dp)
         )
 
         // Action Buttons Row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 8.dp),
+                .padding(top = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (record != null) {
                 OutlinedButton(
                     onClick = { onDelete(record) },
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Delete")
+                    Text("Delete", fontSize = 12.sp)
                 }
                 OutlinedButton(
                     onClick = {
@@ -703,16 +822,20 @@ private fun RecordEditorView(
                         )
                         onExportMarkdown(draftRecord)
                     },
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder),
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Export")
+                    Text("Export", fontSize = 12.sp, color = MaterialTheme.ancientKeysColors.keyText)
                 }
             } else {
                 OutlinedButton(
                     onClick = onCancel,
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.cardBorder),
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Cancel")
+                    Text("Cancel", fontSize = 12.sp, color = MaterialTheme.ancientKeysColors.keyText)
                 }
             }
 
@@ -736,12 +859,15 @@ private fun RecordEditorView(
                     )
                     onSave(newRecord)
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
+                    contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
+                ),
+                shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.weight(1.5f)
             ) {
-                Text("💾 Save Record", fontWeight = FontWeight.Bold)
+                Text("💾 Save Record", fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
 }
-

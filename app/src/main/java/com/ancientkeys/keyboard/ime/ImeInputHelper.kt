@@ -7,6 +7,17 @@ import android.view.inputmethod.InputConnection
 import java.text.BreakIterator
 
 /**
+ * Context-aware display and semantic execution model for the IME primary action key.
+ */
+data class ImeActionDisplayInfo(
+    val actionId: Int,
+    val displayLabel: String,
+    val compactLabel: String,
+    val contentDescription: String,
+    val isEnterNewline: Boolean
+)
+
+/**
  * Handles communication with the Android [InputConnection] for the AncientKeys IME.
  *
  * Implements safe Unicode code point and grapheme cluster insertion and deletion,
@@ -51,9 +62,15 @@ object ImeInputHelper {
     fun commitCharacter(inputConnection: InputConnection?, character: String) {
         if (inputConnection == null || character.isEmpty()) return
         try {
+            inputConnection.beginBatchEdit()
             inputConnection.commitText(character, 1)
         } catch (_: Exception) {
             // Silently swallow exceptions from misbehaving third-party target applications
+        } finally {
+            try {
+                inputConnection.endBatchEdit()
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -63,8 +80,14 @@ object ImeInputHelper {
     fun handleSpace(inputConnection: InputConnection?) {
         if (inputConnection == null) return
         try {
+            inputConnection.beginBatchEdit()
             inputConnection.commitText(" ", 1)
         } catch (_: Exception) {
+        } finally {
+            try {
+                inputConnection.endBatchEdit()
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -77,16 +100,23 @@ object ImeInputHelper {
      * - Combining diacritical marks (e.g. Brahmi / Kharosthi vowel signs)
      * - Empty input / cursor at position 0 (safe no-op)
      * - Truncated or unusual input connection responses
+     * - Batch edit wrapping for zero IPC layout thrashing in host applications
+     * - Repeat backspace bypass of redundant getSelectedText checks
      */
-    fun handleBackspace(inputConnection: InputConnection?) {
+    fun handleBackspace(inputConnection: InputConnection?, isRepeating: Boolean = false) {
         if (inputConnection == null) return
 
         try {
-            // 1. If text is currently selected, replace the selection with an empty string
-            val selectedText = inputConnection.getSelectedText(0)
-            if (!selectedText.isNullOrEmpty()) {
-                inputConnection.commitText("", 1)
-                return
+            inputConnection.beginBatchEdit()
+
+            // 1. If not repeating, inspect if text is currently selected; delete selection if present.
+            // On repeated backspace pulses, selection was already cleared on initial press.
+            if (!isRepeating) {
+                val selectedText = inputConnection.getSelectedText(0)
+                if (!selectedText.isNullOrEmpty()) {
+                    inputConnection.commitText("", 1)
+                    return
+                }
             }
 
             // 2. Inspect up to 16 characters before cursor to accurately detect grapheme clusters
@@ -126,24 +156,192 @@ object ImeInputHelper {
             }
         } catch (_: Exception) {
             // Prevent crashes caused by third-party apps throwing unexpected runtime exceptions
+        } finally {
+            try {
+                inputConnection.endBatchEdit()
+            } catch (_: Exception) {
+            }
         }
     }
 
     /**
-     * Handles the Enter / Action key based on the target editor's [EditorInfo.imeOptions].
+     * Resolves the primary action key display metadata and semantic execution target
+     * based on Android [EditorInfo] flags, options, and custom actions.
      */
-    fun handleEnter(inputConnection: InputConnection?, editorInfo: EditorInfo?) {
+    fun getImeActionInfo(editorInfo: EditorInfo?): ImeActionDisplayInfo {
+        if (editorInfo == null) {
+            return ImeActionDisplayInfo(
+                actionId = EditorInfo.IME_ACTION_UNSPECIFIED,
+                displayLabel = "Enter ↵",
+                compactLabel = "↵",
+                contentDescription = "Enter",
+                isEnterNewline = true
+            )
+        }
+
+        val imeOptions = editorInfo.imeOptions
+        val noEnterAction = (imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION) != 0
+
+        // If the host explicitly set IME_FLAG_NO_ENTER_ACTION, it must act as a regular Enter/newline
+        if (noEnterAction) {
+            return ImeActionDisplayInfo(
+                actionId = EditorInfo.IME_ACTION_UNSPECIFIED,
+                displayLabel = "Enter ↵",
+                compactLabel = "↵",
+                contentDescription = "Enter",
+                isEnterNewline = true
+            )
+        }
+
+        // Check for custom action ID specified by the host app
+        if (editorInfo.actionId != 0) {
+            val customLabel = editorInfo.actionLabel?.toString()?.trim()
+            val label = if (!customLabel.isNullOrBlank()) customLabel else "Action"
+            return ImeActionDisplayInfo(
+                actionId = editorInfo.actionId,
+                displayLabel = label,
+                compactLabel = "↵",
+                contentDescription = label,
+                isEnterNewline = false
+            )
+        }
+
+        // Evaluate standard action mask
+        val action = imeOptions and EditorInfo.IME_MASK_ACTION
+        return when (action) {
+            EditorInfo.IME_ACTION_SEND -> ImeActionDisplayInfo(
+                actionId = EditorInfo.IME_ACTION_SEND,
+                displayLabel = "Send ➤",
+                compactLabel = "➤",
+                contentDescription = "Send",
+                isEnterNewline = false
+            )
+            EditorInfo.IME_ACTION_SEARCH -> ImeActionDisplayInfo(
+                actionId = EditorInfo.IME_ACTION_SEARCH,
+                displayLabel = "Search 🔍",
+                compactLabel = "🔍",
+                contentDescription = "Search",
+                isEnterNewline = false
+            )
+            EditorInfo.IME_ACTION_GO -> ImeActionDisplayInfo(
+                actionId = EditorInfo.IME_ACTION_GO,
+                displayLabel = "Go ➔",
+                compactLabel = "➔",
+                contentDescription = "Go",
+                isEnterNewline = false
+            )
+            EditorInfo.IME_ACTION_NEXT -> ImeActionDisplayInfo(
+                actionId = EditorInfo.IME_ACTION_NEXT,
+                displayLabel = "Next ➔",
+                compactLabel = "➔",
+                contentDescription = "Next",
+                isEnterNewline = false
+            )
+            EditorInfo.IME_ACTION_DONE -> ImeActionDisplayInfo(
+                actionId = EditorInfo.IME_ACTION_DONE,
+                displayLabel = "Done ✓",
+                compactLabel = "✓",
+                contentDescription = "Done",
+                isEnterNewline = false
+            )
+            EditorInfo.IME_ACTION_PREVIOUS -> ImeActionDisplayInfo(
+                actionId = EditorInfo.IME_ACTION_PREVIOUS,
+                displayLabel = "Prev ➔",
+                compactLabel = "➔",
+                contentDescription = "Previous",
+                isEnterNewline = false
+            )
+            else -> {
+                val customLabel = editorInfo.actionLabel?.toString()?.trim()
+                if (!customLabel.isNullOrBlank()) {
+                    ImeActionDisplayInfo(
+                        actionId = 0,
+                        displayLabel = customLabel,
+                        compactLabel = "↵",
+                        contentDescription = customLabel,
+                        isEnterNewline = false
+                    )
+                } else {
+                    ImeActionDisplayInfo(
+                        actionId = action,
+                        displayLabel = "Enter ↵",
+                        compactLabel = "↵",
+                        contentDescription = "Enter",
+                        isEnterNewline = true
+                    )
+                }
+            }
+        }
+    }
+
+    /**
+     * Handles the Enter / Action key based on the target editor's [EditorInfo] semantics.
+     * Respects Send, Search, Go, Next, Done, custom action IDs, and falls back to newline or Enter key events.
+     */
+    fun handleEnter(
+        inputConnection: InputConnection?,
+        editorInfo: EditorInfo?,
+        sendDefaultAction: ((Boolean) -> Boolean)? = null,
+        sendDownUpKey: ((Int) -> Unit)? = null
+    ) {
         if (inputConnection == null) return
         try {
-            val imeOptions = editorInfo?.imeOptions ?: 0
-            val action = imeOptions and EditorInfo.IME_MASK_ACTION
-            val noEnterAction = (imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION) != 0
-
-            if (action != EditorInfo.IME_ACTION_NONE && action != EditorInfo.IME_ACTION_UNSPECIFIED && !noEnterAction) {
-                inputConnection.performEditorAction(action)
-            } else {
+            inputConnection.beginBatchEdit()
+            inputConnection.finishComposingText()
+            val actionInfo = getImeActionInfo(editorInfo)
+            if (actionInfo.isEnterNewline) {
                 inputConnection.commitText("\n", 1)
+            } else {
+                val performed = inputConnection.performEditorAction(actionInfo.actionId)
+                if (!performed) {
+                    val defaultHandled = sendDefaultAction?.invoke(true) ?: false
+                    if (!defaultHandled) {
+                        if (sendDownUpKey != null) {
+                            sendDownUpKey(KeyEvent.KEYCODE_ENTER)
+                        } else {
+                            sendKeyEventDownUp(inputConnection, KeyEvent.KEYCODE_ENTER)
+                        }
+                    }
+                }
             }
+        } catch (_: Exception) {
+        } finally {
+            try {
+                inputConnection.endBatchEdit()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private fun sendKeyEventDownUp(inputConnection: InputConnection, keyCode: Int) {
+        try {
+            val eventTime = android.os.SystemClock.uptimeMillis()
+            inputConnection.sendKeyEvent(
+                KeyEvent(
+                    eventTime,
+                    eventTime,
+                    KeyEvent.ACTION_DOWN,
+                    keyCode,
+                    0,
+                    0,
+                    android.view.KeyCharacterMap.VIRTUAL_KEYBOARD,
+                    0,
+                    KeyEvent.FLAG_SOFT_KEYBOARD
+                )
+            )
+            inputConnection.sendKeyEvent(
+                KeyEvent(
+                    eventTime,
+                    eventTime,
+                    KeyEvent.ACTION_UP,
+                    keyCode,
+                    0,
+                    0,
+                    android.view.KeyCharacterMap.VIRTUAL_KEYBOARD,
+                    0,
+                    KeyEvent.FLAG_SOFT_KEYBOARD
+                )
+            )
         } catch (_: Exception) {
         }
     }
@@ -155,8 +353,14 @@ object ImeInputHelper {
     fun setComposingText(inputConnection: InputConnection?, text: CharSequence, newCursorPosition: Int = 1) {
         if (inputConnection == null) return
         try {
+            inputConnection.beginBatchEdit()
             inputConnection.setComposingText(text, newCursorPosition)
         } catch (_: Exception) {
+        } finally {
+            try {
+                inputConnection.endBatchEdit()
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -166,8 +370,14 @@ object ImeInputHelper {
     fun finishComposingText(inputConnection: InputConnection?) {
         if (inputConnection == null) return
         try {
+            inputConnection.beginBatchEdit()
             inputConnection.finishComposingText()
         } catch (_: Exception) {
+        } finally {
+            try {
+                inputConnection.endBatchEdit()
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -177,8 +387,14 @@ object ImeInputHelper {
     fun commitComposingText(inputConnection: InputConnection?, text: String) {
         if (inputConnection == null) return
         try {
+            inputConnection.beginBatchEdit()
             inputConnection.commitText(text, 1)
         } catch (_: Exception) {
+        } finally {
+            try {
+                inputConnection.endBatchEdit()
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -188,9 +404,15 @@ object ImeInputHelper {
     fun cancelComposingText(inputConnection: InputConnection?) {
         if (inputConnection == null) return
         try {
+            inputConnection.beginBatchEdit()
             inputConnection.setComposingText("", 1)
             inputConnection.finishComposingText()
         } catch (_: Exception) {
+        } finally {
+            try {
+                inputConnection.endBatchEdit()
+            } catch (_: Exception) {
+            }
         }
     }
 }

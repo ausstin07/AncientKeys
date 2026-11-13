@@ -17,6 +17,10 @@ object GreekEasyPhoneticEngine : EasyPhoneticEngine {
     override val engineName: String = "Ancient Greek Easy Phonetic"
     override val description: String = "Conversational English-to-Greek phonetic typing with digraphs, vowel pairs, and contextual final sigma."
 
+    private const val MAX_CACHE_ENTRIES = 256
+    private val conversionCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val candidateCache = java.util.concurrent.ConcurrentHashMap<String, List<PhoneticCandidate>>()
+
     private val multiCharMap = mapOf(
         "th" to "θ", "Th" to "Θ", "TH" to "Θ",
         "ph" to "φ", "Ph" to "Φ", "PH" to "Φ",
@@ -64,6 +68,7 @@ object GreekEasyPhoneticEngine : EasyPhoneticEngine {
 
     override fun convert(rawInput: String): String {
         if (rawInput.isEmpty()) return ""
+        conversionCache[rawInput]?.let { return it }
 
         val sb = StringBuilder()
         var i = 0
@@ -106,12 +111,18 @@ object GreekEasyPhoneticEngine : EasyPhoneticEngine {
             i += 1
         }
 
-        return sb.toString()
+        val result = sb.toString()
+        if (conversionCache.size >= MAX_CACHE_ENTRIES) {
+            conversionCache.clear()
+        }
+        conversionCache[rawInput] = result
+        return result
     }
 
     override fun getCandidates(rawInput: String): List<PhoneticCandidate> {
         val trimmed = rawInput.trim()
         if (trimmed.isEmpty()) return emptyList()
+        candidateCache[rawInput]?.let { return it }
 
         val primary = convert(trimmed)
         val candidates = mutableListOf<PhoneticCandidate>()
@@ -162,7 +173,17 @@ object GreekEasyPhoneticEngine : EasyPhoneticEngine {
             candidates.add(PhoneticCandidate("χ", "χ (chi)", "aspirated velar"))
         }
 
-        return candidates.distinctBy { it.scriptResult }
+        val distinct = candidates.distinctBy { it.scriptResult }
+        if (candidateCache.size >= MAX_CACHE_ENTRIES) {
+            candidateCache.clear()
+        }
+        candidateCache[rawInput] = distinct
+        return distinct
+    }
+
+    override fun clearCache() {
+        conversionCache.clear()
+        candidateCache.clear()
     }
 }
 

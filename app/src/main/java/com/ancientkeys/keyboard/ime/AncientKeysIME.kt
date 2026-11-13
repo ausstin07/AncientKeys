@@ -8,6 +8,7 @@ import android.view.View
 import android.view.Window
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import androidx.core.view.WindowCompat
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
@@ -23,6 +24,7 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.ancientkeys.keyboard.ime.ui.ImeKeyboardLayout
+import com.ancientkeys.keyboard.storage.UserPreferencesRepository
 import com.ancientkeys.keyboard.ui.theme.AncientKeysTheme
 
 /**
@@ -53,6 +55,10 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
     // Observable state for the current field's EditorInfo to reactively handle focus changes
     private val currentEditorInfoState = mutableStateOf<EditorInfo?>(null)
 
+    // Observable state for active theme to reactively handle theme changes while IME is open
+    private val currentThemeState = mutableStateOf(UserPreferencesRepository.DEFAULT_THEME)
+    private var themeUnregisterCallback: (() -> Unit)? = null
+
     override val lifecycle: Lifecycle
         get() = lifecycleRegistry
 
@@ -66,6 +72,13 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
         super.onCreate()
         savedStateRegistryController.performRestore(null)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+        ensureDecorViewOwners()
+
+        val userPrefs = UserPreferencesRepository.getInstance(this)
+        currentThemeState.value = userPrefs.getThemePreference()
+        themeUnregisterCallback = userPrefs.registerThemeChangeListener { newTheme ->
+            currentThemeState.value = newTheme
+        }
     }
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
@@ -75,12 +88,18 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        ensureDecorViewOwners()
         currentEditorInfoState.value = info
+        currentThemeState.value = UserPreferencesRepository.getInstance(this).getThemePreference()
     }
 
     override fun onConfigureWindow(win: Window, isFullscreen: Boolean, isCandidatesOnly: Boolean) {
         super.onConfigureWindow(win, isFullscreen, isCandidatesOnly)
-        ensureDecorViewOwners()
+        ensureDecorViewOwners(win)
+        try {
+            WindowCompat.setDecorFitsSystemWindows(win, false)
+        } catch (_: Exception) {
+        }
     }
 
     override fun onEvaluateInputViewShown(): Boolean {
@@ -96,26 +115,37 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
         ensureDecorViewOwners()
 
         val composeView = ComposeView(this).apply {
-            // Preserve composition context across show/hide cycles until service is destroyed
-            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-
-            // Bind view tree owners locally to the ComposeView
+            // Bind view tree owners locally to the ComposeView before composition or window attachment
             setViewTreeLifecycleOwner(this@AncientKeysIME)
             setViewTreeViewModelStoreOwner(this@AncientKeysIME)
             setViewTreeSavedStateRegistryOwner(this@AncientKeysIME)
 
-            setContent {
-                val userPrefs = androidx.compose.runtime.remember {
-                    com.ancientkeys.keyboard.storage.UserPreferencesRepository.getInstance(this@AncientKeysIME)
+            // Preserve composition context across show/hide cycles until the service itself is destroyed
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnLifecycleDestroyed(lifecycle))
+
+            // Re-assert decor view and root view owners upon window attachment
+            addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+                override fun onViewAttachedToWindow(v: View) {
+                    ensureDecorViewOwners()
+                    v.rootView?.let { root ->
+                        root.setViewTreeLifecycleOwner(this@AncientKeysIME)
+                        root.setViewTreeViewModelStoreOwner(this@AncientKeysIME)
+                        root.setViewTreeSavedStateRegistryOwner(this@AncientKeysIME)
+                    }
                 }
-                val themePref = userPrefs.getThemePreference()
+
+                override fun onViewDetachedFromWindow(v: View) {}
+            })
+
+            setContent {
+                val themePref = currentThemeState.value
                 val isDark = when (themePref) {
-                    com.ancientkeys.keyboard.storage.UserPreferencesRepository.THEME_LIGHT -> false
-                    com.ancientkeys.keyboard.storage.UserPreferencesRepository.THEME_DARK -> true
+                    UserPreferencesRepository.THEME_LIGHT -> false
+                    UserPreferencesRepository.THEME_DARK -> true
                     else -> androidx.compose.foundation.isSystemInDarkTheme()
                 }
 
-                AncientKeysTheme(darkTheme = isDark) {
+                AncientKeysTheme(themePreference = themePref, darkTheme = isDark) {
                     ImeKeyboardLayout(
                         editorInfo = currentEditorInfoState.value,
                         onKeyClick = { key ->
@@ -125,10 +155,18 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
                             ImeInputHelper.handleSpace(currentInputConnection)
                         },
                         onBackspaceClick = {
-                            ImeInputHelper.handleBackspace(currentInputConnection)
+                            ImeInputHelper.handleBackspace(currentInputConnection, isRepeating = false)
+                        },
+                        onBackspaceRepeat = {
+                            ImeInputHelper.handleBackspace(currentInputConnection, isRepeating = true)
                         },
                         onEnterClick = {
-                            ImeInputHelper.handleEnter(currentInputConnection, currentInputEditorInfo)
+                            ImeInputHelper.handleEnter(
+                                currentInputConnection,
+                                currentInputEditorInfo,
+                                sendDefaultAction = { sendDefaultEditorAction(it); true },
+                                sendDownUpKey = { sendDownUpKeyEvents(it) }
+                            )
                         },
                         onSwitchKeyboardClick = {
                             switchKeyboard()
@@ -143,27 +181,12 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
     override fun onWindowShown() {
         super.onWindowShown()
         ensureDecorViewOwners()
-
-        // Ensure standard Android lifecycle transitions: CREATED -> STARTED -> RESUMED
-        if (lifecycleRegistry.currentState == Lifecycle.State.CREATED ||
-            lifecycleRegistry.currentState == Lifecycle.State.INITIALIZED
-        ) {
-            lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
-            lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
-        } else if (lifecycleRegistry.currentState == Lifecycle.State.STARTED) {
-            lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
-        }
+        dispatchWindowShownLifecycle()
     }
 
     override fun onWindowHidden() {
         super.onWindowHidden()
-        // Ensure standard Android lifecycle transitions: RESUMED -> PAUSED -> STOPPED
-        if (lifecycleRegistry.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-            lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
-        }
-        if (lifecycleRegistry.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-            lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
-        }
+        dispatchWindowHiddenLifecycle()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -171,25 +194,87 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
         ensureDecorViewOwners()
     }
 
+    @Suppress("DEPRECATION")
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        com.ancientkeys.keyboard.ime.phonetic.EasyPhoneticProvider.clearAllCaches()
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_MODERATE) {
+            com.ancientkeys.keyboard.util.HistoricalFontProvider.clearCache()
+        }
+    }
+
     override fun onDestroy() {
+        themeUnregisterCallback?.invoke()
+        themeUnregisterCallback = null
+        com.ancientkeys.keyboard.ime.phonetic.EasyPhoneticProvider.clearAllCaches()
+        com.ancientkeys.keyboard.util.HistoricalFontProvider.clearCache()
         super.onDestroy()
-        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        dispatchDestroyLifecycle()
         appViewModelStore.clear()
+    }
+
+    internal fun dispatchWindowShownLifecycle() {
+        for (event in computeWindowShownEvents(lifecycleRegistry.currentState)) {
+            lifecycleRegistry.handleLifecycleEvent(event)
+        }
+    }
+
+    internal fun dispatchWindowHiddenLifecycle() {
+        for (event in computeWindowHiddenEvents(lifecycleRegistry.currentState)) {
+            lifecycleRegistry.handleLifecycleEvent(event)
+        }
+    }
+
+    internal fun dispatchDestroyLifecycle() {
+        for (event in computeWindowHiddenEvents(lifecycleRegistry.currentState)) {
+            lifecycleRegistry.handleLifecycleEvent(event)
+        }
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+    }
+
+    companion object {
+        fun computeWindowShownEvents(currentState: Lifecycle.State): List<Lifecycle.Event> {
+            return when (currentState) {
+                Lifecycle.State.INITIALIZED,
+                Lifecycle.State.CREATED -> listOf(Lifecycle.Event.ON_START, Lifecycle.Event.ON_RESUME)
+                Lifecycle.State.STARTED -> listOf(Lifecycle.Event.ON_RESUME)
+                else -> emptyList()
+            }
+        }
+
+        fun computeWindowHiddenEvents(currentState: Lifecycle.State): List<Lifecycle.Event> {
+            val events = mutableListOf<Lifecycle.Event>()
+            if (currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                events.add(Lifecycle.Event.ON_PAUSE)
+            }
+            if (currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                events.add(Lifecycle.Event.ON_STOP)
+            }
+            return events
+        }
     }
 
     /**
      * Binds this service as the ViewTreeLifecycleOwner, ViewTreeViewModelStoreOwner,
-     * and ViewTreeSavedStateRegistryOwner to the IME window's decor view.
+     * and ViewTreeSavedStateRegistryOwner to the IME window's decor view and root view.
      *
      * This is critical: Jetpack Compose's WindowRecomposer inspects the window's root
      * (DecorView/parentPanel), and will throw an IllegalStateException if these owners
      * are not present on the window decor view.
      */
-    private fun ensureDecorViewOwners() {
-        window?.window?.decorView?.let { decorView ->
+    private fun ensureDecorViewOwners(targetWindow: Window? = null) {
+        val win = targetWindow ?: window?.window
+        win?.decorView?.let { decorView ->
             decorView.setViewTreeLifecycleOwner(this)
             decorView.setViewTreeViewModelStoreOwner(this)
             decorView.setViewTreeSavedStateRegistryOwner(this)
+            decorView.rootView?.let { root ->
+                if (root !== decorView) {
+                    root.setViewTreeLifecycleOwner(this)
+                    root.setViewTreeViewModelStoreOwner(this)
+                    root.setViewTreeSavedStateRegistryOwner(this)
+                }
+            }
         }
     }
 

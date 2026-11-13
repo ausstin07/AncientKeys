@@ -19,6 +19,10 @@ object BrahmiEasyPhoneticEngine : EasyPhoneticEngine {
     override val engineName: String = "Brahmi Easy Phonetic"
     override val description: String = "Conversational English-to-Brahmi phonetic input with inherent 'a' and live vowel-sign composition."
 
+    private const val MAX_CACHE_ENTRIES = 256
+    private val conversionCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val candidateCache = java.util.concurrent.ConcurrentHashMap<String, List<PhoneticCandidate>>()
+
     // Common historical words & royal names where conversational English spelling uses 's' for Sanskrit 'ś'
     private val wordOverrides = mapOf(
         "asoka" to "𑀅𑀰𑁄𑀓",
@@ -35,6 +39,7 @@ object BrahmiEasyPhoneticEngine : EasyPhoneticEngine {
         "ii" to "𑀈",
         "ī" to "𑀈",
         "ee" to "𑀈",
+        "ea" to "𑀈",
         "u" to "𑀉",
         "uu" to "𑀊",
         "ū" to "𑀊",
@@ -47,32 +52,42 @@ object BrahmiEasyPhoneticEngine : EasyPhoneticEngine {
         "r̥̄" to "𑀌",
         "e" to "𑀏",
         "ai" to "𑀐",
+        "ay" to "𑀏",
         "o" to "𑀑",
         "au" to "𑀒",
-        "ou" to "𑀒"
+        "ou" to "𑀒",
+        "aw" to "𑀒"
     )
 
     // Dependent Vowel Signs (Matras)
+    // NOTE: Standard generic Brahmi vowel signs (U+11038..U+11045).
+    // U+11039 is BRAHMI VOWEL SIGN BHATTIPROLU AA and must NEVER be used for generic Brahmi!
     private val dependentVowels = mapOf(
-        "aa" to "\uD804\uDC38",
+        "aa" to "\uD804\uDC38",  // U+11038 BRAHMI VOWEL SIGN AA
         "ā" to "\uD804\uDC38",
-        "a" to "", // Inherent 'a' requires no sign
-        "i" to "\uD804\uDC39",
-        "ii" to "\uD804\uDC3A",
-        "ī" to "\uD804\uDC3A",
-        "ee" to "\uD804\uDC3A",
-        "u" to "\uD804\uDC3B",
-        "uu" to "\uD804\uDC3C",
-        "ū" to "\uD804\uDC3C",
-        "oo" to "\uD804\uDC3C",
-        "ri" to "\uD804\uDC3D",
-        "r̥" to "\uD804\uDC3D",
-        "ree" to "\uD804\uDC3D",
-        "e" to "\uD804\uDC3E",
-        "ai" to "\uD804\uDC3F",
-        "o" to "\uD804\uDC40",
-        "au" to "\uD804\uDC41",
-        "ou" to "\uD804\uDC41"
+        "a" to "",               // Inherent 'a' requires no sign
+        "i" to "\uD804\uDC3A",   // U+1103A BRAHMI VOWEL SIGN I
+        "ii" to "\uD804\uDC3B",  // U+1103B BRAHMI VOWEL SIGN II
+        "ī" to "\uD804\uDC3B",
+        "ee" to "\uD804\uDC3B",
+        "ea" to "\uD804\uDC3B",
+        "u" to "\uD804\uDC3C",   // U+1103C BRAHMI VOWEL SIGN U
+        "uu" to "\uD804\uDC3D",  // U+1103D BRAHMI VOWEL SIGN UU
+        "ū" to "\uD804\uDC3D",
+        "oo" to "\uD804\uDC3D",
+        "ri" to "\uD804\uDC3E",  // U+1103E BRAHMI VOWEL SIGN VOCALIC R
+        "ṛ" to "\uD804\uDC3E",
+        "r̥" to "\uD804\uDC3E",
+        "ree" to "\uD804\uDC3F", // U+1103F BRAHMI VOWEL SIGN VOCALIC RR
+        "ṝ" to "\uD804\uDC3F",
+        "r̥̄" to "\uD804\uDC3F",
+        "e" to "\uD804\uDC42",   // U+11042 BRAHMI VOWEL SIGN E
+        "ai" to "\uD804\uDC43",  // U+11043 BRAHMI VOWEL SIGN AI
+        "ay" to "\uD804\uDC42",
+        "o" to "\uD804\uDC44",   // U+11044 BRAHMI VOWEL SIGN O
+        "au" to "\uD804\uDC45",  // U+11045 BRAHMI VOWEL SIGN AU
+        "ou" to "\uD804\uDC45",
+        "aw" to "\uD804\uDC45"
     )
 
     // Consonants (inherent 'a' is assumed in Brahmi)
@@ -152,6 +167,7 @@ object BrahmiEasyPhoneticEngine : EasyPhoneticEngine {
 
     override fun convert(rawInput: String): String {
         if (rawInput.isEmpty()) return ""
+        conversionCache[rawInput]?.let { return it }
 
         val sb = StringBuilder()
         var i = 0
@@ -252,6 +268,26 @@ object BrahmiEasyPhoneticEngine : EasyPhoneticEngine {
                 sb.append(matchedConsonantGlyph)
                 if (matchedVowelSign != null) {
                     sb.append(matchedVowelSign)
+                } else {
+                    // Consonant has NO dependent vowel following it
+                    if (i < input.length && (input[i] == '_' || input[i] == '-')) {
+                        sb.append("\uD804\uDC46") // Explicit virama
+                        i += 1
+                    } else {
+                        // Check if followed by another consonant (consonant cluster e.g. "st", "kt", "pr", "nd")
+                        val nextIsConsonant = consonants.keys.any { consKey ->
+                            input.startsWith(consKey, i)
+                        }
+                        if (nextIsConsonant) {
+                            sb.append("\uD804\uDC46") // Inherent vowel suppressed in consonant cluster
+                        } else if (i >= input.length || input[i] == ' ' || input[i] == '|' || input[i] in setOf('.', ',', '!', '?', ';', ':')) {
+                            // Word-final consonant without vowel (e.g. final 'n' in "austin")
+                            // When user typed a multi-letter word ending in a consonant, attach virama
+                            if (input.length > (matchedConsonantKey?.length ?: 1)) {
+                                sb.append("\uD804\uDC46")
+                            }
+                        }
+                    }
                 }
 
                 // Check modifier immediately following consonant+vowel (e.g. "kam", "kah")
@@ -259,11 +295,11 @@ object BrahmiEasyPhoneticEngine : EasyPhoneticEngine {
                     if (i + 1 < input.length && modifiers.containsKey(input.substring(i, i + 2))) {
                         sb.append(modifiers[input.substring(i, i + 2)])
                         i += 2
-                    } else if (input[i] == 'm' && (i + 1 == input.length || input[i + 1] == ' ' || input[i + 1] == '_')) {
+                    } else if (input[i] == 'm' && (i + 1 == input.length || input[i + 1] == ' ' || input[i + 1] == '_' || input[i + 1] == '|')) {
                         // Trailing 'm' interpreted as anusvara
                         sb.append("\uD804\uDC01")
                         i += 1
-                    } else if (input[i] == 'h' && (i + 1 == input.length || input[i + 1] == ' ' || input[i + 1] == '_')) {
+                    } else if (input[i] == 'h' && (i + 1 == input.length || input[i + 1] == ' ' || input[i + 1] == '_' || input[i + 1] == '|')) {
                         // Trailing 'h' interpreted as visarga
                         sb.append("\uD804\uDC02")
                         i += 1
@@ -295,12 +331,18 @@ object BrahmiEasyPhoneticEngine : EasyPhoneticEngine {
             i += 1
         }
 
-        return sb.toString()
+        val result = sb.toString()
+        if (conversionCache.size >= MAX_CACHE_ENTRIES) {
+            conversionCache.clear()
+        }
+        conversionCache[rawInput] = result
+        return result
     }
 
     override fun getCandidates(rawInput: String): List<PhoneticCandidate> {
         val trimmed = rawInput.lowercase().trim()
         if (trimmed.isEmpty()) return emptyList()
+        candidateCache[rawInput]?.let { return it }
 
         val primary = convert(trimmed)
         val candidates = mutableListOf<PhoneticCandidate>()
@@ -315,22 +357,50 @@ object BrahmiEasyPhoneticEngine : EasyPhoneticEngine {
             )
         )
 
-        // 2. If input is a single or double consonant, offer vowel variations
+        // 2. If primary ends with virama, offer candidate with inherent 'a'
+        if (primary.endsWith("\uD804\uDC46")) {
+            val withoutVirama = primary.dropLast(2)
+            candidates.add(
+                PhoneticCandidate(
+                    scriptResult = withoutVirama,
+                    displayLabel = "$withoutVirama (${trimmed}a)",
+                    phoneticHint = "inherent final a"
+                )
+            )
+        }
+
+        // 3. If input has 't' or 'th', offer retroflex variant (e.g. Austin with ṭa 𑀝)
+        if (trimmed.contains("t") && !trimmed.contains("t.") && !trimmed.contains("ṭ")) {
+            val retroflexInput = trimmed.replace("th", "ṭh").replace("t", "ṭ")
+            val retroflexResult = convert(retroflexInput)
+            if (retroflexResult != primary) {
+                candidates.add(
+                    PhoneticCandidate(
+                        scriptResult = retroflexResult,
+                        displayLabel = "$retroflexResult (retroflex ṭ)",
+                        phoneticHint = "retroflex ṭ variant"
+                    )
+                )
+            }
+        }
+
+        // 4. If input is a single or double consonant, offer vowel variations
         val baseConsonant = consonants[trimmed]
         if (baseConsonant != null) {
             candidates.add(PhoneticCandidate(baseConsonant, "$baseConsonant (ka)", "inherent a"))
             candidates.add(PhoneticCandidate("$baseConsonant\uD804\uDC38", "$baseConsonant\uD804\uDC38 (${trimmed}aa)", "long ā"))
-            candidates.add(PhoneticCandidate("$baseConsonant\uD804\uDC39", "$baseConsonant\uD804\uDC39 (${trimmed}i)", "short i"))
-            candidates.add(PhoneticCandidate("$baseConsonant\uD804\uDC3A", "$baseConsonant\uD804\uDC3A (${trimmed}ee)", "long ī"))
-            candidates.add(PhoneticCandidate("$baseConsonant\uD804\uDC3B", "$baseConsonant\uD804\uDC3B (${trimmed}u)", "short u"))
-            candidates.add(PhoneticCandidate("$baseConsonant\uD804\uDC3C", "$baseConsonant\uD804\uDC3C (${trimmed}uu)", "long ū"))
-            candidates.add(PhoneticCandidate("$baseConsonant\uD804\uDC3E", "$baseConsonant\uD804\uDC3E (${trimmed}e)", "e"))
-            candidates.add(PhoneticCandidate("$baseConsonant\uD804\uDC3F", "$baseConsonant\uD804\uDC3F (${trimmed}ai)", "ai"))
-            candidates.add(PhoneticCandidate("$baseConsonant\uD804\uDC40", "$baseConsonant\uD804\uDC40 (${trimmed}o)", "o"))
+            candidates.add(PhoneticCandidate("$baseConsonant\uD804\uDC3A", "$baseConsonant\uD804\uDC3A (${trimmed}i)", "short i"))
+            candidates.add(PhoneticCandidate("$baseConsonant\uD804\uDC3B", "$baseConsonant\uD804\uDC3B (${trimmed}ee)", "long ī"))
+            candidates.add(PhoneticCandidate("$baseConsonant\uD804\uDC3C", "$baseConsonant\uD804\uDC3C (${trimmed}u)", "short u"))
+            candidates.add(PhoneticCandidate("$baseConsonant\uD804\uDC3D", "$baseConsonant\uD804\uDC3D (${trimmed}uu)", "long ū"))
+            candidates.add(PhoneticCandidate("$baseConsonant\uD804\uDC42", "$baseConsonant\uD804\uDC42 (${trimmed}e)", "e"))
+            candidates.add(PhoneticCandidate("$baseConsonant\uD804\uDC43", "$baseConsonant\uD804\uDC43 (${trimmed}ai)", "ai"))
+            candidates.add(PhoneticCandidate("$baseConsonant\uD804\uDC44", "$baseConsonant\uD804\uDC44 (${trimmed}o)", "o"))
+            candidates.add(PhoneticCandidate("$baseConsonant\uD804\uDC45", "$baseConsonant\uD804\uDC45 (${trimmed}au)", "au"))
             candidates.add(PhoneticCandidate("$baseConsonant\uD804\uDC46", "$baseConsonant\uD804\uDC46 (${trimmed}-)", "virāma / halant"))
         }
 
-        // 3. Ambiguity resolutions:
+        // 5. Ambiguity resolutions:
         // 't' ambiguity -> offer dental ta (𑀢) and retroflex ṭa (𑀝)
         if (trimmed == "t" || trimmed == "ta") {
             candidates.add(PhoneticCandidate("𑀢", "𑀢 (ta)", "dental"))
@@ -382,7 +452,7 @@ object BrahmiEasyPhoneticEngine : EasyPhoneticEngine {
         // 'ri' options -> vocalic r vs consonant + vowel
         if (trimmed == "ri" || trimmed == "ṛ") {
             candidates.add(PhoneticCandidate("𑀋", "𑀋 (ṛ)", "independent vocalic r"))
-            candidates.add(PhoneticCandidate("𑀭\uD804\uDC39", "𑀭\uD804\uDC39 (ra + i)", "consonant + vowel"))
+            candidates.add(PhoneticCandidate("𑀭\uD804\uDC3A", "𑀭\uD804\uDC3A (ra + i)", "consonant + vowel"))
         }
 
         // 'asoka' royal name candidates
@@ -392,7 +462,17 @@ object BrahmiEasyPhoneticEngine : EasyPhoneticEngine {
         }
 
         // Return distinct candidates preserving order
-        return candidates.distinctBy { it.scriptResult }
+        val distinct = candidates.distinctBy { it.scriptResult }
+        if (candidateCache.size >= MAX_CACHE_ENTRIES) {
+            candidateCache.clear()
+        }
+        candidateCache[rawInput] = distinct
+        return distinct
+    }
+
+    override fun clearCache() {
+        conversionCache.clear()
+        candidateCache.clear()
     }
 }
 

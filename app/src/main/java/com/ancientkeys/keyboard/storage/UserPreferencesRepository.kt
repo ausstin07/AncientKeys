@@ -20,12 +20,17 @@ class UserPreferencesRepository(private val context: Context? = null) {
     // In-memory fallback for testing or non-context execution
     private val memoryRecents = mutableListOf<String>()
     private val memoryFavorites = mutableSetOf<String>()
+    private val memoryFavoriteScripts = mutableSetOf<String>()
     private var memoryKeyboardHeightDp = DEFAULT_KEYBOARD_HEIGHT_DP
     private var memoryHapticsEnabled = true
-    private var memoryThemePreference = THEME_SYSTEM
+    private var memoryThemePreference = DEFAULT_THEME
     private var memoryLastKeyboardMode = MODE_HISTORICAL
     private var memoryScholarMode = false
     private var memoryOnboardingCompleted = false
+    private var memoryKeySizePreference = DEFAULT_KEY_SIZE
+    private var memoryShowKeyLabels = true
+    private var memoryDefaultScriptId = DEFAULT_SCRIPT_ID
+    private var memoryConfirmScriptSwitch = false
 
     companion object {
         const val DEFAULT_KEYBOARD_HEIGHT_DP = 290
@@ -33,22 +38,38 @@ class UserPreferencesRepository(private val context: Context? = null) {
         const val MAX_KEYBOARD_HEIGHT_DP = 360
 
         const val THEME_SYSTEM = "system"
+        const val THEME_SAGE = "sage"
         const val THEME_LIGHT = "light"
         const val THEME_DARK = "dark"
+        const val THEME_SEPIA = "sepia"
+
+        const val DEFAULT_THEME = THEME_SYSTEM
 
         const val MODE_HISTORICAL = "historical"
         const val MODE_ENGLISH = "english"
         const val MODE_ROMANIZED = "romanized"
         const val MODE_EASY_PHONETIC = "easy_phonetic"
 
+        const val KEY_SIZE_SMALL = "small"
+        const val KEY_SIZE_MEDIUM = "medium"
+        const val KEY_SIZE_LARGE = "large"
+        const val DEFAULT_KEY_SIZE = KEY_SIZE_MEDIUM
+
+        const val DEFAULT_SCRIPT_ID = "english"
+
         private const val KEY_RECENTS = "recent_scripts_csv"
         private const val KEY_FAVORITES = "favorite_characters_set"
+        private const val KEY_FAVORITE_SCRIPTS = "favorite_scripts_set"
         private const val KEY_KEYBOARD_HEIGHT = "keyboard_height_dp"
         private const val KEY_HAPTICS = "keyboard_haptics_enabled"
         private const val KEY_THEME = "keyboard_theme_preference"
         private const val KEY_LAST_MODE = "keyboard_last_mode"
         private const val KEY_SCHOLAR_MODE = "scholar_mode_enabled"
         private const val KEY_ONBOARDING_DONE = "onboarding_completed"
+        private const val KEY_KEY_SIZE = "keyboard_key_size"
+        private const val KEY_SHOW_KEY_LABELS = "keyboard_show_key_labels"
+        private const val KEY_DEFAULT_SCRIPT = "keyboard_default_script"
+        private const val KEY_CONFIRM_SCRIPT_SWITCH = "keyboard_confirm_script_switch"
 
         @Volatile
         private var instance: UserPreferencesRepository? = null
@@ -118,6 +139,42 @@ class UserPreferencesRepository(private val context: Context? = null) {
         return favs.filter { it.startsWith(prefix) }.map { it.removePrefix(prefix) }.toSet()
     }
 
+    fun getAllFavoriteScriptIds(): Set<String> {
+        val favs = prefs?.getStringSet(KEY_FAVORITES, null) ?: memoryFavorites
+        return favs.mapNotNull { it.split(":").firstOrNull()?.lowercase() }.toSet()
+    }
+
+    fun getTotalFavoritesCount(): Int {
+        val charFavs = prefs?.getStringSet(KEY_FAVORITES, null) ?: memoryFavorites
+        val scriptFavs = prefs?.getStringSet(KEY_FAVORITE_SCRIPTS, null) ?: memoryFavoriteScripts
+        return charFavs.size + scriptFavs.size
+    }
+
+    fun isScriptFavorite(scriptId: String): Boolean {
+        val favScripts = prefs?.getStringSet(KEY_FAVORITE_SCRIPTS, null) ?: memoryFavoriteScripts
+        return favScripts.contains(scriptId.lowercase().trim())
+    }
+
+    fun toggleScriptFavorite(scriptId: String): Boolean {
+        val clean = scriptId.lowercase().trim()
+        val current = (prefs?.getStringSet(KEY_FAVORITE_SCRIPTS, null)?.toMutableSet() ?: memoryFavoriteScripts.toMutableSet())
+        val newState = if (current.contains(clean)) {
+            current.remove(clean)
+            false
+        } else {
+            current.add(clean)
+            true
+        }
+        prefs?.edit()?.putStringSet(KEY_FAVORITE_SCRIPTS, current)?.apply()
+        memoryFavoriteScripts.clear()
+        memoryFavoriteScripts.addAll(current)
+        return newState
+    }
+
+    fun getFavoriteScriptIds(): Set<String> {
+        return prefs?.getStringSet(KEY_FAVORITE_SCRIPTS, null) ?: memoryFavoriteScripts
+    }
+
     // --- Keyboard Height Setting ---
 
     fun getKeyboardHeightDp(): Int {
@@ -145,17 +202,56 @@ class UserPreferencesRepository(private val context: Context? = null) {
     // --- Theme Preference ---
 
     fun getThemePreference(): String {
-        return prefs?.getString(KEY_THEME, memoryThemePreference) ?: memoryThemePreference
-    }
-
-    fun setThemePreference(theme: String) {
-        val safeTheme = when (theme.lowercase()) {
+        val stored = prefs?.getString(KEY_THEME, null)
+        return when (stored?.lowercase()?.trim()) {
+            THEME_SAGE -> THEME_SAGE
             THEME_LIGHT -> THEME_LIGHT
             THEME_DARK -> THEME_DARK
-            else -> THEME_SYSTEM
+            THEME_SEPIA -> THEME_SEPIA
+            THEME_SYSTEM -> THEME_SYSTEM
+            null -> memoryThemePreference
+            else -> DEFAULT_THEME
+        }
+    }
+
+    private val themeListeners = mutableListOf<(String) -> Unit>()
+
+    fun setThemePreference(theme: String) {
+        val safeTheme = when (theme.lowercase().trim()) {
+            THEME_SAGE -> THEME_SAGE
+            THEME_LIGHT -> THEME_LIGHT
+            THEME_DARK -> THEME_DARK
+            THEME_SEPIA -> THEME_SEPIA
+            THEME_SYSTEM -> THEME_SYSTEM
+            else -> DEFAULT_THEME
         }
         prefs?.edit()?.putString(KEY_THEME, safeTheme)?.apply()
         memoryThemePreference = safeTheme
+        themeListeners.forEach { it(safeTheme) }
+    }
+
+    fun reloadTheme(): String {
+        val current = getThemePreference()
+        themeListeners.forEach { it(current) }
+        return current
+    }
+
+    fun registerThemeChangeListener(listener: (String) -> Unit): () -> Unit {
+        themeListeners.add(listener)
+        val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == KEY_THEME) {
+                listener(getThemePreference())
+            }
+        }
+        prefs?.registerOnSharedPreferenceChangeListener(prefListener)
+        return {
+            themeListeners.remove(listener)
+            prefs?.unregisterOnSharedPreferenceChangeListener(prefListener)
+        }
+    }
+
+    fun getAvailableThemes(): List<String> {
+        return listOf(THEME_SAGE, THEME_LIGHT, THEME_DARK, THEME_SEPIA, THEME_SYSTEM)
     }
 
     // --- Last Keyboard Mode ---
@@ -189,5 +285,55 @@ class UserPreferencesRepository(private val context: Context? = null) {
     fun setOnboardingCompleted(completed: Boolean) {
         prefs?.edit()?.putBoolean(KEY_ONBOARDING_DONE, completed)?.apply()
         memoryOnboardingCompleted = completed
+    }
+
+    // --- Key Size Preference ---
+
+    fun getKeySizePreference(): String {
+        return prefs?.getString(KEY_KEY_SIZE, memoryKeySizePreference) ?: memoryKeySizePreference
+    }
+
+    fun setKeySizePreference(size: String) {
+        val safe = when (size.lowercase().trim()) {
+            KEY_SIZE_SMALL -> KEY_SIZE_SMALL
+            KEY_SIZE_LARGE -> KEY_SIZE_LARGE
+            else -> KEY_SIZE_MEDIUM
+        }
+        prefs?.edit()?.putString(KEY_KEY_SIZE, safe)?.apply()
+        memoryKeySizePreference = safe
+    }
+
+    // --- Show Key Labels / Transliterations ---
+
+    fun isShowKeyLabelsEnabled(): Boolean {
+        return prefs?.getBoolean(KEY_SHOW_KEY_LABELS, memoryShowKeyLabels) ?: memoryShowKeyLabels
+    }
+
+    fun setShowKeyLabelsEnabled(enabled: Boolean) {
+        prefs?.edit()?.putBoolean(KEY_SHOW_KEY_LABELS, enabled)?.apply()
+        memoryShowKeyLabels = enabled
+    }
+
+    // --- Default Script Preference ---
+
+    fun getDefaultScriptId(): String {
+        return prefs?.getString(KEY_DEFAULT_SCRIPT, memoryDefaultScriptId) ?: memoryDefaultScriptId
+    }
+
+    fun setDefaultScriptId(scriptId: String) {
+        val clean = scriptId.lowercase().trim()
+        prefs?.edit()?.putString(KEY_DEFAULT_SCRIPT, clean)?.apply()
+        memoryDefaultScriptId = clean
+    }
+
+    // --- Confirm Script Switch Setting ---
+
+    fun isConfirmScriptSwitchEnabled(): Boolean {
+        return prefs?.getBoolean(KEY_CONFIRM_SCRIPT_SWITCH, memoryConfirmScriptSwitch) ?: memoryConfirmScriptSwitch
+    }
+
+    fun setConfirmScriptSwitchEnabled(enabled: Boolean) {
+        prefs?.edit()?.putBoolean(KEY_CONFIRM_SCRIPT_SWITCH, enabled)?.apply()
+        memoryConfirmScriptSwitch = enabled
     }
 }

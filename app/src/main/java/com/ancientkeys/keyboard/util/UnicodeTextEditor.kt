@@ -79,6 +79,13 @@ object UnicodeTextEditor {
     }
 
     /**
+     * Inserts a standard newline character at the current selection or cursor position.
+     */
+    fun insertNewline(current: TextFieldValue): TextFieldValue {
+        return insert(current, "\n")
+    }
+
+    /**
      * Clears all text and resets cursor to start.
      */
     fun clear(): TextFieldValue {
