@@ -276,20 +276,32 @@ object ImeInputHelper {
 
     /**
      * Handles the Enter / Action key based on the target editor's [EditorInfo] semantics.
-     * Respects Send, Search, Go, Next, Done, custom action IDs, and falls back to newline.
+     * Respects Send, Search, Go, Next, Done, custom action IDs, and falls back to newline or Enter key events.
      */
-    fun handleEnter(inputConnection: InputConnection?, editorInfo: EditorInfo?) {
+    fun handleEnter(
+        inputConnection: InputConnection?,
+        editorInfo: EditorInfo?,
+        sendDefaultAction: ((Boolean) -> Boolean)? = null,
+        sendDownUpKey: ((Int) -> Unit)? = null
+    ) {
         if (inputConnection == null) return
         try {
             inputConnection.beginBatchEdit()
+            inputConnection.finishComposingText()
             val actionInfo = getImeActionInfo(editorInfo)
             if (actionInfo.isEnterNewline) {
                 inputConnection.commitText("\n", 1)
             } else {
                 val performed = inputConnection.performEditorAction(actionInfo.actionId)
                 if (!performed) {
-                    // Safe fallback if host refused editor action
-                    inputConnection.commitText("\n", 1)
+                    val defaultHandled = sendDefaultAction?.invoke(true) ?: false
+                    if (!defaultHandled) {
+                        if (sendDownUpKey != null) {
+                            sendDownUpKey(KeyEvent.KEYCODE_ENTER)
+                        } else {
+                            sendKeyEventDownUp(inputConnection, KeyEvent.KEYCODE_ENTER)
+                        }
+                    }
                 }
             }
         } catch (_: Exception) {
@@ -298,6 +310,39 @@ object ImeInputHelper {
                 inputConnection.endBatchEdit()
             } catch (_: Exception) {
             }
+        }
+    }
+
+    private fun sendKeyEventDownUp(inputConnection: InputConnection, keyCode: Int) {
+        try {
+            val eventTime = android.os.SystemClock.uptimeMillis()
+            inputConnection.sendKeyEvent(
+                KeyEvent(
+                    eventTime,
+                    eventTime,
+                    KeyEvent.ACTION_DOWN,
+                    keyCode,
+                    0,
+                    0,
+                    android.view.KeyCharacterMap.VIRTUAL_KEYBOARD,
+                    0,
+                    KeyEvent.FLAG_SOFT_KEYBOARD
+                )
+            )
+            inputConnection.sendKeyEvent(
+                KeyEvent(
+                    eventTime,
+                    eventTime,
+                    KeyEvent.ACTION_UP,
+                    keyCode,
+                    0,
+                    0,
+                    android.view.KeyCharacterMap.VIRTUAL_KEYBOARD,
+                    0,
+                    KeyEvent.FLAG_SOFT_KEYBOARD
+                )
+            )
+        } catch (_: Exception) {
         }
     }
 

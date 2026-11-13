@@ -161,7 +161,12 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
                             ImeInputHelper.handleBackspace(currentInputConnection, isRepeating = true)
                         },
                         onEnterClick = {
-                            ImeInputHelper.handleEnter(currentInputConnection, currentInputEditorInfo)
+                            ImeInputHelper.handleEnter(
+                                currentInputConnection,
+                                currentInputEditorInfo,
+                                sendDefaultAction = { sendDefaultEditorAction(it); true },
+                                sendDownUpKey = { sendDownUpKeyEvents(it) }
+                            )
                         },
                         onSwitchKeyboardClick = {
                             switchKeyboard()

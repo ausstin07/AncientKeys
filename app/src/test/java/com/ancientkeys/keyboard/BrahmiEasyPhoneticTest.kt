@@ -66,25 +66,49 @@ class BrahmiEasyPhoneticTest {
     fun testDependentVowelSigns() {
         assertEquals("𑀓\uD804\uDC38", BrahmiEasyPhoneticEngine.convert("kaa"))
         assertEquals("𑀓\uD804\uDC38", BrahmiEasyPhoneticEngine.convert("kā"))
-        assertEquals("𑀓\uD804\uDC39", BrahmiEasyPhoneticEngine.convert("ki"))
-        assertEquals("𑀓\uD804\uDC3A", BrahmiEasyPhoneticEngine.convert("kii"))
-        assertEquals("𑀓\uD804\uDC3A", BrahmiEasyPhoneticEngine.convert("kee"))
-        assertEquals("𑀓\uD804\uDC3B", BrahmiEasyPhoneticEngine.convert("ku"))
-        assertEquals("𑀓\uD804\uDC3C", BrahmiEasyPhoneticEngine.convert("kuu"))
-        assertEquals("𑀓\uD804\uDC3E", BrahmiEasyPhoneticEngine.convert("ke"))
-        assertEquals("𑀓\uD804\uDC3F", BrahmiEasyPhoneticEngine.convert("kai"))
-        assertEquals("𑀓\uD804\uDC40", BrahmiEasyPhoneticEngine.convert("ko"))
-        assertEquals("𑀓\uD804\uDC41", BrahmiEasyPhoneticEngine.convert("kau"))
+        assertEquals("𑀓\uD804\uDC3A", BrahmiEasyPhoneticEngine.convert("ki"))
+        assertEquals("𑀓\uD804\uDC3B", BrahmiEasyPhoneticEngine.convert("kii"))
+        assertEquals("𑀓\uD804\uDC3B", BrahmiEasyPhoneticEngine.convert("kee"))
+        assertEquals("𑀓\uD804\uDC3C", BrahmiEasyPhoneticEngine.convert("ku"))
+        assertEquals("𑀓\uD804\uDC3D", BrahmiEasyPhoneticEngine.convert("kuu"))
+        assertEquals("𑀓\uD804\uDC42", BrahmiEasyPhoneticEngine.convert("ke"))
+        assertEquals("𑀓\uD804\uDC43", BrahmiEasyPhoneticEngine.convert("kai"))
+        assertEquals("𑀓\uD804\uDC44", BrahmiEasyPhoneticEngine.convert("ko"))
+        assertEquals("𑀓\uD804\uDC45", BrahmiEasyPhoneticEngine.convert("kau"))
     }
 
     @Test
     fun testWordsAndPhrases() {
         // "asoka" -> 𑀅 (a) + 𑀰𑁄 (sho) + 𑀓 (ka)
         assertEquals("𑀅𑀰𑁄𑀓", BrahmiEasyPhoneticEngine.convert("asoka"))
-        // "dhamma" -> 𑀥 (dha) + 𑀫 (ma) + 𑀫 (ma)
-        assertEquals("𑀥𑀫𑀫", BrahmiEasyPhoneticEngine.convert("dhamma"))
-        // "namaste" -> 𑀦 (na) + 𑀫 (ma) + 𑀲\uD804\uDC46 (s with virama) + 𑀢\uD804\uDC3E (te)
-        assertEquals("𑀦𑀫𑀲𑁆𑀢\uD804\uDC3E", BrahmiEasyPhoneticEngine.convert("namas_te"))
+        // "dhamma" -> 𑀥 (dha) + 𑀫𑁆 (m cluster) + 𑀫 (ma)
+        assertEquals("𑀥𑀫𑁆𑀫", BrahmiEasyPhoneticEngine.convert("dhamma"))
+        // "namaste" -> 𑀦 (na) + 𑀫 (ma) + 𑀲𑁆 (s cluster) + 𑀢𑁂 (te)
+        assertEquals("𑀦𑀫𑀲𑁆𑀢𑁂", BrahmiEasyPhoneticEngine.convert("namaste"))
+        assertEquals("𑀦𑀫𑀲𑁆𑀢𑁂", BrahmiEasyPhoneticEngine.convert("namas_te"))
+    }
+
+    @Test
+    fun testAustinPhonemicTransliterationAndBhattiproluExclusion() {
+        // Standard phonemic transliteration of "Austin":
+        // "au" -> 𑀒 (U+11012), "s" -> 𑀲 + 𑁆 (U+11046 virama cluster), "ti" -> 𑀢 + 𑀺 (U+1103A vowel sign i), "n" -> 𑀦 + 𑁆 (U+11046 final virama)
+        val austin = BrahmiEasyPhoneticEngine.convert("Austin")
+        assertEquals("𑀒𑀲𑁆𑀢𑀺𑀦𑁆", austin)
+
+        // Strict verification: Bhattiprolu regional variant U+11039 must NEVER be present!
+        assertFalse("Must NEVER emit Bhattiprolu AA (U+11039)", austin.contains("\uD804\uDC39"))
+        assertTrue("Must emit standard Brahmi vowel sign I (U+1103A)", austin.contains("\uD804\uDC3A"))
+        assertTrue("Must use virama (U+11046) for consonant cluster and final consonant", austin.contains("\uD804\uDC46"))
+
+        // Explicit "Austina" produces final inherent 'a' without virama
+        val austina = BrahmiEasyPhoneticEngine.convert("Austina")
+        assertEquals("𑀒𑀲𑁆𑀢𑀺𑀦", austina)
+
+        // Verify candidates for "austin"
+        val candidates = BrahmiEasyPhoneticEngine.getCandidates("austin")
+        assertTrue("Primary candidate must be 𑀒𑀲𑁆𑀢𑀺𑀦𑁆", candidates.any { it.isPrimary && it.scriptResult == "𑀒𑀲𑁆𑀢𑀺𑀦𑁆" })
+        assertTrue("Must offer candidate with inherent final a (𑀒𑀲𑁆𑀢𑀺𑀦)", candidates.any { it.scriptResult == "𑀒𑀲𑁆𑀢𑀺𑀦" })
+        assertTrue("Must offer retroflex ṭ variant (𑀒𑀲𑁆𑀝𑀺𑀦𑁆)", candidates.any { it.scriptResult == "𑀒𑀲𑁆𑀝𑀺𑀦𑁆" })
     }
 
     @Test
@@ -92,7 +116,8 @@ class BrahmiEasyPhoneticTest {
         val candidates = BrahmiEasyPhoneticEngine.getCandidates("k")
         assertTrue("Must include primary candidate", candidates.any { it.isPrimary })
         assertTrue("Must offer vowel variants", candidates.any { it.scriptResult == "𑀓\uD804\uDC38" })
-        assertTrue("Must offer short i", candidates.any { it.scriptResult == "𑀓\uD804\uDC39" })
+        assertTrue("Must offer short i", candidates.any { it.scriptResult == "𑀓\uD804\uDC3A" })
+        assertFalse("Must NOT offer Bhattiprolu U+11039", candidates.any { it.scriptResult == "𑀓\uD804\uDC39" })
         assertTrue("Must offer virama", candidates.any { it.scriptResult == "𑀓\uD804\uDC46" })
         assertTrue("Must offer aspirated kha", candidates.any { it.scriptResult == "𑀔" })
     }

@@ -223,6 +223,89 @@ class ImeInputHelperTest {
     }
 
     @Test
+    fun testAllImeActionsAndDisplayInfo() {
+        // Search
+        val searchInfo = ImeInputHelper.getImeActionInfo(EditorInfo().apply { imeOptions = EditorInfo.IME_ACTION_SEARCH })
+        assertEquals(EditorInfo.IME_ACTION_SEARCH, searchInfo.actionId)
+        assertEquals("Search 🔍", searchInfo.displayLabel)
+        assertEquals("🔍", searchInfo.compactLabel)
+        assertFalse(searchInfo.isEnterNewline)
+
+        // Go
+        val goInfo = ImeInputHelper.getImeActionInfo(EditorInfo().apply { imeOptions = EditorInfo.IME_ACTION_GO })
+        assertEquals(EditorInfo.IME_ACTION_GO, goInfo.actionId)
+        assertEquals("Go ➔", goInfo.displayLabel)
+        assertEquals("➔", goInfo.compactLabel)
+        assertFalse(goInfo.isEnterNewline)
+
+        // Send
+        val sendInfo = ImeInputHelper.getImeActionInfo(EditorInfo().apply { imeOptions = EditorInfo.IME_ACTION_SEND })
+        assertEquals(EditorInfo.IME_ACTION_SEND, sendInfo.actionId)
+        assertEquals("Send ➤", sendInfo.displayLabel)
+        assertFalse(sendInfo.isEnterNewline)
+
+        // Next
+        val nextInfo = ImeInputHelper.getImeActionInfo(EditorInfo().apply { imeOptions = EditorInfo.IME_ACTION_NEXT })
+        assertEquals(EditorInfo.IME_ACTION_NEXT, nextInfo.actionId)
+        assertEquals("Next ➔", nextInfo.displayLabel)
+        assertFalse(nextInfo.isEnterNewline)
+
+        // Done
+        val doneInfo = ImeInputHelper.getImeActionInfo(EditorInfo().apply { imeOptions = EditorInfo.IME_ACTION_DONE })
+        assertEquals(EditorInfo.IME_ACTION_DONE, doneInfo.actionId)
+        assertEquals("Done ✓", doneInfo.displayLabel)
+        assertFalse(doneInfo.isEnterNewline)
+
+        // Custom action ID & label
+        val customInfo = ImeInputHelper.getImeActionInfo(EditorInfo().apply {
+            actionId = 42
+            actionLabel = "Custom"
+        })
+        assertEquals(42, customInfo.actionId)
+        assertEquals("Custom", customInfo.displayLabel)
+        assertFalse(customInfo.isEnterNewline)
+
+        // IME_FLAG_NO_ENTER_ACTION
+        val noEnterActionInfo = ImeInputHelper.getImeActionInfo(EditorInfo().apply {
+            imeOptions = EditorInfo.IME_ACTION_SEARCH or EditorInfo.IME_FLAG_NO_ENTER_ACTION
+        })
+        assertTrue(noEnterActionInfo.isEnterNewline)
+    }
+
+    @Test
+    fun testActionFallbackToSendDefaultActionAndKeyEvents() {
+        // Test connection that refuses performEditorAction
+        var sendDefaultCalled = false
+        var downUpKeyCalled = false
+        var lastKeyCode = -1
+
+        val refusingIc = object : FakeInputConnection("search query", 12) {
+            override fun performEditorAction(editorAction: Int): Boolean = false
+        }
+
+        val editorInfo = EditorInfo().apply {
+            imeOptions = EditorInfo.IME_ACTION_SEARCH
+        }
+
+        ImeInputHelper.handleEnter(
+            refusingIc,
+            editorInfo,
+            sendDefaultAction = {
+                sendDefaultCalled = true
+                false // Simulate sendDefaultEditorAction also returning false
+            },
+            sendDownUpKey = { keyCode ->
+                downUpKeyCalled = true
+                lastKeyCode = keyCode
+            }
+        )
+
+        assertTrue("Must fallback to sendDefaultEditorAction", sendDefaultCalled)
+        assertTrue("Must fallback to sending Enter key event when host refuses action", downUpKeyCalled)
+        assertEquals(KeyEvent.KEYCODE_ENTER, lastKeyCode)
+    }
+
+    @Test
     fun testEnterNewlineFallback() {
         val ic = FakeInputConnection("test", 4)
         val editorInfo = EditorInfo().apply {

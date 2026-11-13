@@ -94,18 +94,18 @@ object BrahmiRomanizer : ScriptRomanizer {
 
     // Documented dependent vowel signs (matras)
     private val dependentVowels = mapOf(
-        "ā" to "\uD804\uDC38",  // U+11038
+        "ā" to "\uD804\uDC38",  // U+11038 BRAHMI VOWEL SIGN AA
         "aa" to "\uD804\uDC38",
-        "i" to "\uD804\uDC39",   // U+11039
-        "ī" to "\uD804\uDC3A",   // U+1103A
-        "ii" to "\uD804\uDC3A",
-        "u" to "\uD804\uDC3B",   // U+1103B
-        "ū" to "\uD804\uDC3C",   // U+1103C
-        "uu" to "\uD804\uDC3C",
-        "e" to "\uD804\uDC3E",   // U+1103E
-        "ai" to "\uD804\uDC3F",  // U+1103F
-        "o" to "\uD804\uDC40",   // U+11040
-        "au" to "\uD804\uDC41"   // U+11041
+        "i" to "\uD804\uDC3A",   // U+1103A BRAHMI VOWEL SIGN I
+        "ī" to "\uD804\uDC3B",   // U+1103B BRAHMI VOWEL SIGN II
+        "ii" to "\uD804\uDC3B",
+        "u" to "\uD804\uDC3C",   // U+1103C BRAHMI VOWEL SIGN U
+        "ū" to "\uD804\uDC3D",   // U+1103D BRAHMI VOWEL SIGN UU
+        "uu" to "\uD804\uDC3D",
+        "e" to "\uD804\uDC42",   // U+11042 BRAHMI VOWEL SIGN E
+        "ai" to "\uD804\uDC43",  // U+11043 BRAHMI VOWEL SIGN AI
+        "o" to "\uD804\uDC44",   // U+11044 BRAHMI VOWEL SIGN O
+        "au" to "\uD804\uDC45"   // U+11045 BRAHMI VOWEL SIGN AU
     )
 
     // Modifiers & Punctuation
@@ -232,14 +232,14 @@ object BrahmiRomanizer : ScriptRomanizer {
         return listOf(
             BrahmiCompositionPreview(prefix, baseBrahmi, "$baseBrahmi (inherent a)"),
             BrahmiCompositionPreview("${prefix}ā", "$baseBrahmi\uD804\uDC38"),
-            BrahmiCompositionPreview("${prefix}i", "$baseBrahmi\uD804\uDC39"),
-            BrahmiCompositionPreview("${prefix}ī", "$baseBrahmi\uD804\uDC3A"),
-            BrahmiCompositionPreview("${prefix}u", "$baseBrahmi\uD804\uDC3B"),
-            BrahmiCompositionPreview("${prefix}ū", "$baseBrahmi\uD804\uDC3C"),
-            BrahmiCompositionPreview("${prefix}e", "$baseBrahmi\uD804\uDC3E"),
-            BrahmiCompositionPreview("${prefix}ai", "$baseBrahmi\uD804\uDC3F"),
-            BrahmiCompositionPreview("${prefix}o", "$baseBrahmi\uD804\uDC40"),
-            BrahmiCompositionPreview("${prefix}au", "$baseBrahmi\uD804\uDC41"),
+            BrahmiCompositionPreview("${prefix}i", "$baseBrahmi\uD804\uDC3A"),
+            BrahmiCompositionPreview("${prefix}ī", "$baseBrahmi\uD804\uDC3B"),
+            BrahmiCompositionPreview("${prefix}u", "$baseBrahmi\uD804\uDC3C"),
+            BrahmiCompositionPreview("${prefix}ū", "$baseBrahmi\uD804\uDC3D"),
+            BrahmiCompositionPreview("${prefix}e", "$baseBrahmi\uD804\uDC42"),
+            BrahmiCompositionPreview("${prefix}ai", "$baseBrahmi\uD804\uDC43"),
+            BrahmiCompositionPreview("${prefix}o", "$baseBrahmi\uD804\uDC44"),
+            BrahmiCompositionPreview("${prefix}au", "$baseBrahmi\uD804\uDC45"),
             BrahmiCompositionPreview("${prefix}ṃ", "$baseBrahmi\uD804\uDC01"),
             BrahmiCompositionPreview("${prefix}ḥ", "$baseBrahmi\uD804\uDC02")
         )

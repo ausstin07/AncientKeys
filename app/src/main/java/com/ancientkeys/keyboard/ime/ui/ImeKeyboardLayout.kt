@@ -896,25 +896,35 @@ private fun MultiModeKeyboardContent(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.weight(1f)
                                     ) {
-                                        Text(
-                                            text = if (phoneticBuffer.isEmpty()) "Type English (e.g. 'ka', 'kaa', 'ki')..." else phoneticBuffer,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontWeight = if (phoneticBuffer.isEmpty()) FontWeight.Normal else FontWeight.Bold,
-                                            color = if (phoneticBuffer.isEmpty()) MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.6f) else MaterialTheme.ancientKeysColors.keyText
-                                        )
-                                        if (primaryConverted.isNotEmpty()) {
+                                        if (phoneticBuffer.isEmpty()) {
                                             Text(
-                                                text = " ➔ ",
+                                                text = "Phonetic: type Roman letters (e.g. 'austin', 'asoka')...",
                                                 style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.ancientKeysColors.glyphAccent
+                                                fontWeight = FontWeight.Normal,
+                                                color = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.6f)
                                             )
+                                        } else {
                                             Text(
-                                                text = primaryConverted,
-                                                fontFamily = scriptFont,
-                                                fontSize = 20.sp,
+                                                text = phoneticBuffer,
+                                                style = MaterialTheme.typography.bodyMedium,
                                                 fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground
+                                                color = MaterialTheme.ancientKeysColors.keyText
                                             )
+                                            if (primaryConverted.isNotEmpty()) {
+                                                Text(
+                                                    text = " ➔ ",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.ancientKeysColors.glyphAccent
+                                                )
+                                                Text(
+                                                    text = primaryConverted,
+                                                    fontFamily = scriptFont,
+                                                    fontSize = 20.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground
+                                                )
+                                            }
                                         }
                                     }
 
@@ -930,7 +940,8 @@ private fun MultiModeKeyboardContent(
                                                         triggerHaptic()
                                                         phoneticBuffer = ""
                                                     }
-                                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                                                    .semantics { contentDescription = "Clear phonetic buffer" },
                                                 fontSize = 14.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.error
@@ -943,14 +954,16 @@ private fun MultiModeKeyboardContent(
                                                     }
                                                     phoneticBuffer = ""
                                                 },
-                                                modifier = Modifier.height(26.dp),
+                                                modifier = Modifier
+                                                    .height(26.dp)
+                                                    .semantics { contentDescription = "Commit converted script to input" },
                                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
                                                 colors = ButtonDefaults.buttonColors(
                                                     containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
                                                     contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText
                                                 )
                                             ) {
-                                                Text("Commit ↵", fontSize = 10.sp)
+                                                Text("Commit ↵", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                                             }
                                         }
                                     }
@@ -1299,6 +1312,7 @@ private fun MultiModeKeyboardContent(
             }
         }
 
+        val isHistorical = keyboardMode == KeyboardMode.HISTORICAL
         val bottomRowHeight = ImeDimensionsHelper.computeBottomRowHeight(isLandscape).dp
 
         // --- Bottom Control Row ---
@@ -1310,7 +1324,7 @@ private fun MultiModeKeyboardContent(
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Quick Mode Toggle / Mode Indicator
+            // Quick Mode Toggle / Mode Indicator (?123 / ABC)
             ImeActionKey(
                 onClick = {
                     when (keyboardMode) {
@@ -1330,8 +1344,14 @@ private fun MultiModeKeyboardContent(
                 },
                 onHaptic = ::triggerHaptic,
                 modifier = Modifier
-                    .fillMaxHeight()
-                    .widthIn(min = 40.dp)
+                    .weight(if (isHistorical) 1.3f else 1.25f)
+                    .fillMaxHeight(),
+                contentDescription = when (keyboardMode) {
+                    KeyboardMode.ENGLISH_QWERTY -> "Switch to Numbers and Symbols"
+                    KeyboardMode.NUMBERS_SYMBOLS -> "Switch to English Letters"
+                    KeyboardMode.HISTORICAL -> "Switch to English QWERTY"
+                    KeyboardMode.EASY_PHONETIC, KeyboardMode.ROMANIZED -> "Switch to Numbers and Symbols"
+                }
             ) {
                 Text(
                     text = when (keyboardMode) {
@@ -1348,24 +1368,23 @@ private fun MultiModeKeyboardContent(
             }
 
             // Comma (for English, Numbers, or Phonetic mode)
-            if (keyboardMode != KeyboardMode.HISTORICAL) {
+            if (!isHistorical) {
                 ImeActionKey(
                     onClick = {
                         onKeyClick(ScriptKey(character = ",", unicodeCodePoint = "U+002C"))
                     },
                     onHaptic = ::triggerHaptic,
                     modifier = Modifier
-                        .fillMaxHeight()
-                        .widthIn(min = 34.dp, max = 40.dp),
+                        .weight(0.9f)
+                        .fillMaxHeight(),
                     contentDescription = "Comma"
                 ) {
                     Text(",", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
-            // Space Bar - Expands to weight 3.8f when Backspace is in Row 3, or 2.4f in Historical mode
-            val isHistorical = keyboardMode == KeyboardMode.HISTORICAL
-            val spaceWeight = if (isHistorical) 2.4f else 3.8f
+            // Space Bar - Expands to weight 4.2f when Backspace is in Row 3, or 4.6f in Historical mode
+            val spaceWeight = if (isHistorical) 4.6f else 4.2f
 
             ImeActionKey(
                 onClick = {
@@ -1387,8 +1406,7 @@ private fun MultiModeKeyboardContent(
                 onHaptic = ::triggerHaptic,
                 modifier = Modifier
                     .weight(spaceWeight)
-                    .fillMaxHeight()
-                    .widthIn(min = ImeDimensionsHelper.MIN_SPACE_KEY_WIDTH_DP.dp),
+                    .fillMaxHeight(),
                 containerColor = MaterialTheme.ancientKeysColors.keyBackground,
                 contentColor = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.75f),
                 contentDescription = "Space"
@@ -1409,15 +1427,15 @@ private fun MultiModeKeyboardContent(
             }
 
             // Period (for English, Numbers, or Phonetic mode)
-            if (keyboardMode != KeyboardMode.HISTORICAL) {
+            if (!isHistorical) {
                 ImeActionKey(
                     onClick = {
                         onKeyClick(ScriptKey(character = ".", unicodeCodePoint = "U+002E"))
                     },
                     onHaptic = ::triggerHaptic,
                     modifier = Modifier
-                        .fillMaxHeight()
-                        .widthIn(min = 34.dp, max = 40.dp),
+                        .weight(0.9f)
+                        .fillMaxHeight(),
                     contentDescription = "Period"
                 ) {
                     Text(".", fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -1428,9 +1446,8 @@ private fun MultiModeKeyboardContent(
             if (isHistorical) {
                 Box(
                     modifier = Modifier
-                        .weight(1.3f)
+                        .weight(1.4f)
                         .fillMaxHeight()
-                        .widthIn(min = ImeDimensionsHelper.MIN_BACKSPACE_KEY_WIDTH_DP.dp)
                 ) {
                     RepeatKeyButton(
                         onClick = onBackspaceClick,
@@ -1456,29 +1473,26 @@ private fun MultiModeKeyboardContent(
                             onKeyClick(ScriptKey(character = converted, unicodeCodePoint = currentScript.id.uppercase()))
                         }
                         phoneticBuffer = ""
-                        return@ImeActionKey
                     } else if (keyboardMode == KeyboardMode.ROMANIZED && romanizedBuffer.isNotEmpty() && activeRomanizer != null) {
                         val transliterated = activeRomanizer.transliterateToken(romanizedBuffer)
                         if (transliterated.isNotEmpty()) {
                             onKeyClick(ScriptKey(character = transliterated, unicodeCodePoint = currentScript.id.uppercase()))
                         }
                         romanizedBuffer = ""
-                        return@ImeActionKey
                     }
                     onEnterClick()
                 },
                 onHaptic = ::triggerHaptic,
                 modifier = Modifier
-                    .weight(1.3f)
-                    .fillMaxHeight()
-                    .widthIn(min = ImeDimensionsHelper.MIN_ENTER_KEY_WIDTH_DP.dp),
+                    .weight(1.8f)
+                    .fillMaxHeight(),
                 containerColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
                 contentColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
                 contentDescription = actionInfo.contentDescription
             ) {
                 Text(
                     text = if (isLandscape) actionInfo.compactLabel else actionInfo.displayLabel,
-                    fontSize = if (isLandscape) 14.sp else 13.sp,
+                    fontSize = if (isLandscape) 13.sp else 12.5.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1
                 )
