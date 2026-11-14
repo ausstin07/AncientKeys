@@ -14,8 +14,8 @@ import com.ancientkeys.keyboard.model.HistoricalScript
  */
 object ImeDimensionsHelper {
 
-    const val DEFAULT_PORTRAIT_HEIGHT_DP = 290
-    const val MIN_PORTRAIT_HEIGHT_DP = 240
+    const val DEFAULT_PORTRAIT_HEIGHT_DP = 270
+    const val MIN_PORTRAIT_HEIGHT_DP = 230
     const val MAX_PORTRAIT_HEIGHT_DP = 360
 
     const val MIN_LANDSCAPE_HEIGHT_DP = 160
@@ -24,6 +24,16 @@ object ImeDimensionsHelper {
     const val MIN_ENTER_KEY_WIDTH_DP = 44
     const val MIN_BACKSPACE_KEY_WIDTH_DP = 42
     const val MIN_SPACE_KEY_WIDTH_DP = 70
+
+    /**
+     * Height of the compact phonetic and transliteration suggestion strip in portrait (dp).
+     */
+    const val PHONETIC_STRIP_PORTRAIT_HEIGHT_DP = 40
+
+    /**
+     * Height of the compact phonetic and transliteration suggestion strip in landscape (dp).
+     */
+    const val PHONETIC_STRIP_LANDSCAPE_HEIGHT_DP = 32
 
     /**
      * Computes the adaptive total keyboard height in density-independent pixels (dp).
@@ -48,7 +58,7 @@ object ImeDimensionsHelper {
         val maxAllowedHeight = (screenHeightDp * 0.48f).toInt()
 
         val modeAdjustedHeight = when (keyboardMode) {
-            KeyboardMode.EASY_PHONETIC, KeyboardMode.ROMANIZED -> baseHeight + 28
+            KeyboardMode.EASY_PHONETIC, KeyboardMode.ROMANIZED -> baseHeight + 20
             else -> baseHeight
         }
 
@@ -56,6 +66,32 @@ object ImeDimensionsHelper {
             MIN_PORTRAIT_HEIGHT_DP,
             maxOf(MIN_PORTRAIT_HEIGHT_DP, maxAllowedHeight)
         )
+    }
+
+    /**
+     * Computes the ergonomic bottom inset padding for the keyboard surface.
+     *
+     * In gesture navigation, Android navigation bar insets are typically 12–24 dp.
+     * We constrain the bottom chin to 8–14 dp so the spacebar has safe clearance from
+     * the system home/app-switching gesture area without creating an unsightly dead gap.
+     *
+     * In 3-button navigation (insets > 24 dp), the system hardware/navigation bar sits at
+     * the bottom of the screen. We apply the required clearance without extra artificial padding.
+     *
+     * In landscape, bottom chin is minimized (0–4 dp) while horizontal cutouts are handled.
+     */
+    fun computeBottomChinPaddingDp(
+        systemBottomInsetDp: Float,
+        isLandscape: Boolean
+    ): Float {
+        if (isLandscape) {
+            return 0f
+        }
+        return when {
+            systemBottomInsetDp <= 0f -> 4f // Minimum aesthetic clearance
+            systemBottomInsetDp in 1f..24f -> systemBottomInsetDp.coerceIn(8f, 14f) // Ergonomic gesture chin
+            else -> systemBottomInsetDp.coerceAtMost(48f) // 3-button navigation bar clearance
+        }
     }
 
     /**

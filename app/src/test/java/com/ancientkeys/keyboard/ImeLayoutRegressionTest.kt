@@ -21,22 +21,22 @@ class ImeLayoutRegressionTest {
 
     @Test
     fun testPortraitAdaptiveHeightClamping() {
-        // Standard phone portrait: 800 dp height, default preference (290 dp)
+        // Standard phone portrait: 800 dp height, default preference (270 dp)
         val defaultPortrait = ImeDimensionsHelper.computeAdaptiveKeyboardHeight(
             screenHeightDp = 800,
             isLandscape = false,
             keyboardMode = KeyboardMode.HISTORICAL,
-            userPreferenceHeightDp = 290
+            userPreferenceHeightDp = 270
         )
-        assertEquals(290, defaultPortrait)
+        assertEquals(270, defaultPortrait)
 
         // Very small screen phone portrait: 400 dp screen height
-        // Max allowed is 400 * 0.48 = 192 dp, but clamped to MIN_PORTRAIT_HEIGHT_DP (240 dp)
+        // Max allowed is 400 * 0.48 = 192 dp, but clamped to MIN_PORTRAIT_HEIGHT_DP (230 dp)
         val smallScreen = ImeDimensionsHelper.computeAdaptiveKeyboardHeight(
             screenHeightDp = 400,
             isLandscape = false,
             keyboardMode = KeyboardMode.HISTORICAL,
-            userPreferenceHeightDp = 290
+            userPreferenceHeightDp = 270
         )
         assertEquals(ImeDimensionsHelper.MIN_PORTRAIT_HEIGHT_DP, smallScreen)
 
@@ -47,7 +47,7 @@ class ImeLayoutRegressionTest {
             keyboardMode = KeyboardMode.HISTORICAL,
             userPreferenceHeightDp = 500
         )
-        // User preference is clamped to MAX_PORTRAIT_HEIGHT_DP (360 dp)
+        // User preference is clamped to MAX_PORTRAIT_HEIGHT_DP (340 dp)
         assertEquals(ImeDimensionsHelper.MAX_PORTRAIT_HEIGHT_DP, clampedMax)
     }
 
@@ -58,26 +58,43 @@ class ImeLayoutRegressionTest {
             screenHeightDp = 800,
             isLandscape = false,
             keyboardMode = KeyboardMode.HISTORICAL,
-            userPreferenceHeightDp = 290
+            userPreferenceHeightDp = 270
         )
         val phoneticHeight = ImeDimensionsHelper.computeAdaptiveKeyboardHeight(
             screenHeightDp = 800,
             isLandscape = false,
             keyboardMode = KeyboardMode.EASY_PHONETIC,
-            userPreferenceHeightDp = 290
+            userPreferenceHeightDp = 270
         )
         val romanizedHeight = ImeDimensionsHelper.computeAdaptiveKeyboardHeight(
             screenHeightDp = 800,
             isLandscape = false,
             keyboardMode = KeyboardMode.ROMANIZED,
-            userPreferenceHeightDp = 290
+            userPreferenceHeightDp = 270
         )
 
-        // Phonetic and Romanized receive +28 dp for the candidate/composition strip
-        assertEquals(290, historicalHeight)
-        assertEquals(318, phoneticHeight)
-        assertEquals(318, romanizedHeight)
+        // Phonetic and Romanized receive +20 dp for the compact candidate/composition strip
+        assertEquals(270, historicalHeight)
+        assertEquals(290, phoneticHeight)
+        assertEquals(290, romanizedHeight)
         assertTrue(phoneticHeight > historicalHeight)
+    }
+
+    @Test
+    fun testBottomChinPaddingCalculation() {
+        // Gesture navigation (16 dp system inset) -> clamped to 14 dp chin
+        assertEquals(14f, ImeDimensionsHelper.computeBottomChinPaddingDp(16f, isLandscape = false))
+        assertEquals(10f, ImeDimensionsHelper.computeBottomChinPaddingDp(10f, isLandscape = false))
+
+        // 3-button navigation (48 dp system inset) -> 48 dp
+        assertEquals(48f, ImeDimensionsHelper.computeBottomChinPaddingDp(48f, isLandscape = false))
+
+        // Zero or negative inset -> aesthetic 4 dp minimum
+        assertEquals(4f, ImeDimensionsHelper.computeBottomChinPaddingDp(0f, isLandscape = false))
+
+        // Landscape mode -> zero chin to preserve vertical screen space for host text input
+        assertEquals(0f, ImeDimensionsHelper.computeBottomChinPaddingDp(16f, isLandscape = true))
+        assertEquals(0f, ImeDimensionsHelper.computeBottomChinPaddingDp(48f, isLandscape = true))
     }
 
     @Test

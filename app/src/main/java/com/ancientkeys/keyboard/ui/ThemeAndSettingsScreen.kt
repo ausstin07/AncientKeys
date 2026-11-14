@@ -345,9 +345,9 @@ fun ThemeAndSettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             listOf(
-                                250 to "Compact (250 dp)",
-                                290 to "Standard (290 dp)",
-                                330 to "Tall (330 dp)"
+                                UserPreferencesRepository.HEIGHT_PRESET_COMPACT to "Compact (${UserPreferencesRepository.HEIGHT_PRESET_COMPACT} dp)",
+                                UserPreferencesRepository.HEIGHT_PRESET_STANDARD to "Standard (${UserPreferencesRepository.HEIGHT_PRESET_STANDARD} dp)",
+                                UserPreferencesRepository.HEIGHT_PRESET_LARGE to "Large (${UserPreferencesRepository.HEIGHT_PRESET_LARGE} dp)"
                             ).forEach { (presetDp, label) ->
                                 val isSelected = keyboardHeightDp.roundToInt() == presetDp
                                 FilterChip(

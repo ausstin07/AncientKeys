@@ -83,11 +83,11 @@ fun RepeatKeyButton(
     modifier: Modifier = Modifier,
     onRepeatClick: (() -> Unit)? = null,
     enabled: Boolean = true,
-    shape: Shape = AncientKeysDesignTokens.Shapes.actionKeyShape,
+    shape: Shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
     containerColor: Color = MaterialTheme.ancientKeysColors.keyActionBackground,
     contentColor: Color = MaterialTheme.ancientKeysColors.keyActionText,
-    border: BorderStroke? = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
-    elevation: Dp = AncientKeysDesignTokens.Elevation.flat,
+    border: BorderStroke? = BorderStroke(0.5.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.35f)),
+    elevation: Dp = 1.dp,
     contentDescription: String = "Backspace",
     onHaptic: () -> Unit = {},
     content: @Composable () -> Unit
@@ -139,7 +139,7 @@ fun RepeatKeyButton(
         color = if (isPressed) MaterialTheme.ancientKeysColors.keyPrimaryActionBackground.copy(alpha = 0.25f) else containerColor,
         contentColor = contentColor,
         border = if (isPressed) BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyPrimaryActionBackground) else border,
-        shadowElevation = AncientKeysDesignTokens.Elevation.flat
+        shadowElevation = elevation
     ) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
             content()

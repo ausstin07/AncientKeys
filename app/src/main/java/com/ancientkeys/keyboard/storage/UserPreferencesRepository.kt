@@ -33,8 +33,12 @@ class UserPreferencesRepository(private val context: Context? = null) {
     private var memoryConfirmScriptSwitch = false
 
     companion object {
-        const val DEFAULT_KEYBOARD_HEIGHT_DP = 290
-        const val MIN_KEYBOARD_HEIGHT_DP = 240
+        const val HEIGHT_PRESET_COMPACT = 245
+        const val HEIGHT_PRESET_STANDARD = 270
+        const val HEIGHT_PRESET_LARGE = 310
+
+        const val DEFAULT_KEYBOARD_HEIGHT_DP = HEIGHT_PRESET_STANDARD
+        const val MIN_KEYBOARD_HEIGHT_DP = 230
         const val MAX_KEYBOARD_HEIGHT_DP = 360
 
         const val THEME_SYSTEM = "system"
@@ -177,6 +181,13 @@ class UserPreferencesRepository(private val context: Context? = null) {
 
     // --- Keyboard Height Setting ---
 
+    private val heightListeners = mutableListOf<(Int) -> Unit>()
+
+    fun registerHeightChangeListener(listener: (Int) -> Unit): () -> Unit {
+        heightListeners.add(listener)
+        return { heightListeners.remove(listener) }
+    }
+
     fun getKeyboardHeightDp(): Int {
         val stored = prefs?.getInt(KEY_KEYBOARD_HEIGHT, memoryKeyboardHeightDp) ?: memoryKeyboardHeightDp
         return stored.coerceIn(MIN_KEYBOARD_HEIGHT_DP, MAX_KEYBOARD_HEIGHT_DP)
@@ -186,6 +197,7 @@ class UserPreferencesRepository(private val context: Context? = null) {
         val safeHeight = heightDp.coerceIn(MIN_KEYBOARD_HEIGHT_DP, MAX_KEYBOARD_HEIGHT_DP)
         prefs?.edit()?.putInt(KEY_KEYBOARD_HEIGHT, safeHeight)?.apply()
         memoryKeyboardHeightDp = safeHeight
+        heightListeners.forEach { it(safeHeight) }
     }
 
     // --- Haptic Feedback Setting ---
