@@ -84,28 +84,45 @@ class UserPreferencesTest {
 
     @Test
     fun testKeyboardHeightPresetsAndClamping() {
-        // Default height (Standard preset = 290dp)
+        // Default height (Standard preset = 270dp)
         assertEquals(UserPreferencesRepository.DEFAULT_KEYBOARD_HEIGHT_DP, repo.getKeyboardHeightDp())
+        assertEquals(270, UserPreferencesRepository.DEFAULT_KEYBOARD_HEIGHT_DP)
 
-        // Compact preset (250dp)
-        repo.setKeyboardHeightDp(250)
-        assertEquals(250, repo.getKeyboardHeightDp())
+        // Compact preset (245dp)
+        repo.setKeyboardHeightDp(UserPreferencesRepository.HEIGHT_PRESET_COMPACT)
+        assertEquals(245, repo.getKeyboardHeightDp())
 
-        // Standard preset (290dp)
-        repo.setKeyboardHeightDp(290)
-        assertEquals(290, repo.getKeyboardHeightDp())
+        // Standard preset (270dp)
+        repo.setKeyboardHeightDp(UserPreferencesRepository.HEIGHT_PRESET_STANDARD)
+        assertEquals(270, repo.getKeyboardHeightDp())
 
-        // Tall preset (330dp)
-        repo.setKeyboardHeightDp(330)
-        assertEquals(330, repo.getKeyboardHeightDp())
+        // Large preset (310dp)
+        repo.setKeyboardHeightDp(UserPreferencesRepository.HEIGHT_PRESET_LARGE)
+        assertEquals(UserPreferencesRepository.HEIGHT_PRESET_LARGE, repo.getKeyboardHeightDp())
 
-        // Out of bounds minimum clamp
+        // Out of bounds minimum clamp (below 230dp)
         repo.setKeyboardHeightDp(150)
         assertEquals(UserPreferencesRepository.MIN_KEYBOARD_HEIGHT_DP, repo.getKeyboardHeightDp())
 
-        // Out of bounds maximum clamp
+        // Out of bounds maximum clamp (above 340dp)
         repo.setKeyboardHeightDp(500)
         assertEquals(UserPreferencesRepository.MAX_KEYBOARD_HEIGHT_DP, repo.getKeyboardHeightDp())
+    }
+
+    @Test
+    fun testKeyboardHeightChangeListener() {
+        var notifiedHeight = -1
+        val unregister = repo.registerHeightChangeListener { newHeight ->
+            notifiedHeight = newHeight
+        }
+
+        repo.setKeyboardHeightDp(285)
+        assertEquals(285, notifiedHeight)
+
+        unregister()
+        repo.setKeyboardHeightDp(260)
+        // Should not be updated after unregister
+        assertEquals(285, notifiedHeight)
     }
 
     @Test

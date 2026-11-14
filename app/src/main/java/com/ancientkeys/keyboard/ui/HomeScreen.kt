@@ -144,69 +144,7 @@ fun HomeScreen(
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.ancientKeysColors.keyboardBackground,
-                tonalElevation = 2.dp
-            ) {
-                NavigationBarItem(
-                    selected = true,
-                    onClick = { /* already home */ },
-                    icon = { Text("🏠", fontSize = 18.sp) },
-                    label = { Text("Home", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
-                    colors = NavigationBarItemDefaults.colors(
-                        indicatorColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                        selectedIconColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
-                        selectedTextColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                        unselectedIconColor = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.7f),
-                        unselectedTextColor = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.7f)
-                    )
-                )
-                NavigationBarItem(
-                    selected = false,
-                    onClick = {
-                        val target = recentScripts.firstOrNull() ?: ScriptRegistry.allScripts.first()
-                        onOpenExplorer(target)
-                    },
-                    icon = { Text("🧭", fontSize = 18.sp) },
-                    label = { Text("Explore", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
-                    colors = NavigationBarItemDefaults.colors(
-                        indicatorColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                        selectedIconColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
-                        selectedTextColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                        unselectedIconColor = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.7f),
-                        unselectedTextColor = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.7f)
-                    )
-                )
-                NavigationBarItem(
-                    selected = false,
-                    onClick = onOpenLearn,
-                    icon = { Text("📖", fontSize = 18.sp) },
-                    label = { Text("Learn", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
-                    colors = NavigationBarItemDefaults.colors(
-                        indicatorColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                        selectedIconColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
-                        selectedTextColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                        unselectedIconColor = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.7f),
-                        unselectedTextColor = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.7f)
-                    )
-                )
-                NavigationBarItem(
-                    selected = false,
-                    onClick = onOpenSettings,
-                    icon = { Text("⚙️", fontSize = 18.sp) },
-                    label = { Text("Settings", fontSize = 11.sp, fontWeight = FontWeight.SemiBold) },
-                    colors = NavigationBarItemDefaults.colors(
-                        indicatorColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                        selectedIconColor = MaterialTheme.ancientKeysColors.keyPrimaryActionText,
-                        selectedTextColor = MaterialTheme.ancientKeysColors.keyPrimaryActionBackground,
-                        unselectedIconColor = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.7f),
-                        unselectedTextColor = MaterialTheme.ancientKeysColors.keyText.copy(alpha = 0.7f)
-                    )
-                )
-            }
-        }
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -766,7 +704,7 @@ private fun FeaturedScriptCard(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.ancientKeysColors.keyText,
-                            maxLines = 1,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false).padding(end = 6.dp)
                         )

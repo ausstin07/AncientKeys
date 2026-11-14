@@ -102,6 +102,7 @@ import com.ancientkeys.keyboard.util.UnicodeMetadataHelper
 fun ImeKeyboardLayout(
     editorInfo: EditorInfo?,
     initialScriptId: String = "english",
+    userPreferenceHeightDp: Int = UserPreferencesRepository.DEFAULT_KEYBOARD_HEIGHT_DP,
     onKeyClick: (ScriptKey) -> Unit,
     onSpaceClick: () -> Unit,
     onBackspaceClick: () -> Unit,
@@ -114,7 +115,9 @@ fun ImeKeyboardLayout(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val userPrefs = remember { UserPreferencesRepository.getInstance(context) }
-    val userPrefsHeight = remember { userPrefs.getKeyboardHeightDp() }
+    val effectivePrefsHeight = remember(userPreferenceHeightDp) {
+        if (userPreferenceHeightDp > 0) userPreferenceHeightDp else userPrefs.getKeyboardHeightDp()
+    }
 
     // Determine initial preferred script based on default setting or recents
     val preferredScriptId = remember {
@@ -145,12 +148,12 @@ fun ImeKeyboardLayout(
         ImeInputHelper.isSensitiveField(editorInfo)
     }
 
-    val baseAdaptiveHeight = remember(configuration.screenHeightDp, isLandscape, keyboardMode, userPrefsHeight) {
+    val baseAdaptiveHeight = remember(configuration.screenHeightDp, isLandscape, keyboardMode, effectivePrefsHeight) {
         ImeDimensionsHelper.computeAdaptiveKeyboardHeight(
             screenHeightDp = configuration.screenHeightDp,
             isLandscape = isLandscape,
             keyboardMode = keyboardMode,
-            userPreferenceHeightDp = userPrefsHeight
+            userPreferenceHeightDp = effectivePrefsHeight
         )
     }
 
@@ -158,20 +161,24 @@ fun ImeKeyboardLayout(
     val bottomNavInset = navBarPadding.calculateBottomPadding()
     val startNavInset = navBarPadding.calculateStartPadding(androidx.compose.ui.platform.LocalLayoutDirection.current)
     val endNavInset = navBarPadding.calculateEndPadding(androidx.compose.ui.platform.LocalLayoutDirection.current)
-    val totalSurfaceHeight = baseAdaptiveHeight.dp + bottomNavInset
+
+    val bottomChin = remember(bottomNavInset, isLandscape) {
+        ImeDimensionsHelper.computeBottomChinPaddingDp(bottomNavInset.value, isLandscape).dp
+    }
+    val totalSurfaceHeight = baseAdaptiveHeight.dp + bottomChin
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .height(totalSurfaceHeight),
         color = MaterialTheme.ancientKeysColors.keyboardBackground,
-        tonalElevation = 6.dp
+        tonalElevation = 4.dp
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
-                    bottom = bottomNavInset,
+                    bottom = bottomChin,
                     start = if (isLandscape) startNavInset else 0.dp,
                     end = if (isLandscape) endNavInset else 0.dp
                 )
@@ -880,7 +887,10 @@ private fun MultiModeKeyboardContent(
                             }
                         }
 
-                        val phoneticStripHeight = if (isLandscape) 42.dp else 54.dp
+                        val phoneticStripHeight = if (isLandscape)
+                            ImeDimensionsHelper.PHONETIC_STRIP_LANDSCAPE_HEIGHT_DP.dp
+                        else
+                            ImeDimensionsHelper.PHONETIC_STRIP_PORTRAIT_HEIGHT_DP.dp
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1097,7 +1107,10 @@ private fun MultiModeKeyboardContent(
                         }
 
                         // Composition & Transliteration Preview Header
-                        val romanizedStripHeight = if (isLandscape) 42.dp else 54.dp
+                        val romanizedStripHeight = if (isLandscape)
+                            ImeDimensionsHelper.PHONETIC_STRIP_LANDSCAPE_HEIGHT_DP.dp
+                        else
+                            ImeDimensionsHelper.PHONETIC_STRIP_PORTRAIT_HEIGHT_DP.dp
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1885,12 +1898,12 @@ private fun QwertyKey(
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 2.dp, vertical = 1.5.dp),
-            shape = AncientKeysDesignTokens.Shapes.keyShape,
+                .padding(horizontal = 2.5.dp, vertical = 2.5.dp),
+            shape = RoundedCornerShape(8.dp),
             border = BorderStroke(
-                1.dp,
+                0.5.dp,
                 if (isPressed) MaterialTheme.ancientKeysColors.keyPrimaryActionBackground
-                else MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)
+                else MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.35f)
             ),
             color = if (isPressed) {
                 MaterialTheme.ancientKeysColors.keyPrimaryActionBackground.copy(alpha = 0.25f)
@@ -1899,7 +1912,7 @@ private fun QwertyKey(
             } else {
                 MaterialTheme.ancientKeysColors.keyBackground
             },
-            shadowElevation = AncientKeysDesignTokens.Elevation.flat
+            shadowElevation = 1.dp
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -1907,8 +1920,8 @@ private fun QwertyKey(
             ) {
                 Text(
                     text = label,
-                    fontSize = if (isLandscape) 14.sp else 17.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontSize = if (isLandscape) 15.sp else 18.sp,
+                    fontWeight = FontWeight.Medium,
                     color = MaterialTheme.ancientKeysColors.keyText
                 )
                 if (hasAlts) {
@@ -1935,10 +1948,10 @@ private fun QwertyKey(
 private fun ImeActionKey(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    shape: Shape = AncientKeysDesignTokens.Shapes.keyShape,
+    shape: Shape = RoundedCornerShape(8.dp),
     containerColor: Color = MaterialTheme.ancientKeysColors.keyActionBackground,
     contentColor: Color = MaterialTheme.ancientKeysColors.keyActionText,
-    border: BorderStroke? = BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)),
+    border: BorderStroke? = BorderStroke(0.5.dp, MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.35f)),
     contentDescription: String? = null,
     onHaptic: () -> Unit = {},
     content: @Composable () -> Unit
@@ -1980,12 +1993,12 @@ private fun ImeActionKey(
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 2.dp, vertical = 1.5.dp),
+                .padding(horizontal = 2.5.dp, vertical = 2.5.dp),
             shape = shape,
             border = if (isPressed) BorderStroke(1.dp, MaterialTheme.ancientKeysColors.keyPrimaryActionBackground) else border,
             color = if (isPressed) MaterialTheme.ancientKeysColors.keyPrimaryActionBackground.copy(alpha = 0.25f) else containerColor,
             contentColor = contentColor,
-            shadowElevation = AncientKeysDesignTokens.Elevation.flat
+            shadowElevation = 1.dp
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 content()
@@ -2047,11 +2060,11 @@ private fun ImeKeyItem(
                 }
             }
             .semantics { contentDescription = accessibleDesc },
-        shape = AncientKeysDesignTokens.Shapes.keyShape,
+        shape = RoundedCornerShape(8.dp),
         border = BorderStroke(
-            1.dp,
+            0.5.dp,
             if (isPressed) MaterialTheme.ancientKeysColors.keyPrimaryActionBackground
-            else MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.6f)
+            else MaterialTheme.ancientKeysColors.keyBorder.copy(alpha = 0.35f)
         ),
         color = if (isPressed) {
             MaterialTheme.ancientKeysColors.keyPrimaryActionBackground.copy(alpha = 0.25f)
@@ -2059,7 +2072,7 @@ private fun ImeKeyItem(
             MaterialTheme.ancientKeysColors.keyBackground
         },
         contentColor = MaterialTheme.ancientKeysColors.keyText,
-        shadowElevation = AncientKeysDesignTokens.Elevation.flat
+        shadowElevation = 1.dp
     ) {
         Column(
             modifier = Modifier

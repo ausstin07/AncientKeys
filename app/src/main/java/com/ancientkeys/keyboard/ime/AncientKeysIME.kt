@@ -59,6 +59,10 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
     private val currentThemeState = mutableStateOf(UserPreferencesRepository.DEFAULT_THEME)
     private var themeUnregisterCallback: (() -> Unit)? = null
 
+    // Observable state for keyboard height preference to reactively update layout without restart
+    private val currentHeightPreferenceState = mutableStateOf(UserPreferencesRepository.DEFAULT_KEYBOARD_HEIGHT_DP)
+    private var heightUnregisterCallback: (() -> Unit)? = null
+
     override val lifecycle: Lifecycle
         get() = lifecycleRegistry
 
@@ -76,8 +80,12 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
 
         val userPrefs = UserPreferencesRepository.getInstance(this)
         currentThemeState.value = userPrefs.getThemePreference()
+        currentHeightPreferenceState.value = userPrefs.getKeyboardHeightDp()
         themeUnregisterCallback = userPrefs.registerThemeChangeListener { newTheme ->
             currentThemeState.value = newTheme
+        }
+        heightUnregisterCallback = userPrefs.registerHeightChangeListener { newHeight ->
+            currentHeightPreferenceState.value = newHeight
         }
     }
 
@@ -90,7 +98,9 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
         super.onStartInputView(info, restarting)
         ensureDecorViewOwners()
         currentEditorInfoState.value = info
-        currentThemeState.value = UserPreferencesRepository.getInstance(this).getThemePreference()
+        val userPrefs = UserPreferencesRepository.getInstance(this)
+        currentThemeState.value = userPrefs.getThemePreference()
+        currentHeightPreferenceState.value = userPrefs.getKeyboardHeightDp()
     }
 
     override fun onConfigureWindow(win: Window, isFullscreen: Boolean, isCandidatesOnly: Boolean) {
@@ -148,6 +158,7 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
                 AncientKeysTheme(themePreference = themePref, darkTheme = isDark) {
                     ImeKeyboardLayout(
                         editorInfo = currentEditorInfoState.value,
+                        userPreferenceHeightDp = currentHeightPreferenceState.value,
                         onKeyClick = { key ->
                             ImeInputHelper.commitCharacter(currentInputConnection, key.character)
                         },
@@ -206,6 +217,8 @@ class AncientKeysIME : InputMethodService(), LifecycleOwner, ViewModelStoreOwner
     override fun onDestroy() {
         themeUnregisterCallback?.invoke()
         themeUnregisterCallback = null
+        heightUnregisterCallback?.invoke()
+        heightUnregisterCallback = null
         com.ancientkeys.keyboard.ime.phonetic.EasyPhoneticProvider.clearAllCaches()
         com.ancientkeys.keyboard.util.HistoricalFontProvider.clearCache()
         super.onDestroy()

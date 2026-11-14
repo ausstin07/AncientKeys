@@ -158,7 +158,7 @@ class ThemeSettingsTest {
 
     @Test
     fun testKeyboardHeightClampingAndPresets() {
-        assertEquals(290, repo.getKeyboardHeightDp())
+        assertEquals(UserPreferencesRepository.DEFAULT_KEYBOARD_HEIGHT_DP, repo.getKeyboardHeightDp())
 
         // Standard presets
         repo.setKeyboardHeightDp(250)
